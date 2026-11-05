@@ -1,0 +1,17 @@
+{
+  "model": "opus",
+  "autoMemoryEnabled": false,
+  "permissions": {
+    "allow": [
+      "Bash(git init:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(node --check:*)"
+    ]
+  }
+}
