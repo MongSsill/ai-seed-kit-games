@@ -45,6 +45,8 @@
   var SEG_TRIES = 30;      // 다시 만드는 횟수 한도
   var FAR_ROW = 100;       // 확인용 ?far 로 시작하는 줄
   var BELL_RINGS = 4;      // 열차 예고 종: 예고 1초 동안 땡 네 번 (0.25초마다)
+  var BEST_FLASH = 2.0;    // 최고 기록을 넘긴 순간 "최고 기록!" 글자를 보여 주는 시간 (가장자리 빛은 앞 1초)
+  var FX_BAND = 76;        // 반짝이와 색종이는 화면 위쪽 이 높이(픽셀) 안에서만 흩날린다 (앞줄을 가리지 않게)
   var CHARS = [
     { id: 'basic', name: '기본' },
     { id: 'frog', name: '개구리' },
@@ -112,6 +114,7 @@
   var stepSounds = 0; // 낸 걸음 소리 수 (테스트용)
   var deathSounds = []; // 낸 게임 오버 소리 종류 (테스트용)
   var bellSounds = 0;   // 낸 열차 종소리 수 (테스트용)
+  var fanfareSounds = 0; // 낸 팡파레 수 (테스트용)
   var noiseBuf = null;  // 쾅, 풍덩에 쓰는 지직거리는 소리 (한 번만 만든다)
   function initAudio() {
     if (audio) {
@@ -201,6 +204,17 @@
       tone('square', 1046, 1000, 0, 0.08, 0.1);
       tone('square', 1318, 1250, 0.11, 0.1, 0.1);
     }
+  }
+
+  // 팡파레 (빠바밤!): 도·미·솔을 빠르게 올리고 높은 도를 조금 길게. 최고 기록을 넘긴 순간과 해금한 판의 결과창에서
+  function playFanfare() {
+    if (!audio) return;
+    fanfareSounds += 1;
+    tone('square', 523, 523, 0, 0.09, 0.09);
+    tone('square', 659, 659, 0.08, 0.09, 0.09);
+    tone('square', 784, 784, 0.16, 0.09, 0.09);
+    tone('square', 1047, 1047, 0.24, 0.3, 0.1);
+    tone('triangle', 1047, 1047, 0.24, 0.3, 0.12);
   }
 
   // 열차 예고 종: 땡
@@ -729,11 +743,16 @@
     s.overShown = false;
   }
 
-  // 플레이 중 최고 기록을 넘긴 순간: 기록 숫자 둘레에 반짝이
+  // 플레이 중 최고 기록을 넘긴 순간: 기록 숫자 둘레에 반짝이, 화면 위 두 모서리에서 색종이 (모두 위쪽 띠 안에서만)
   function burst() {
-    var colors = ['#ffd54f', '#ffffff', '#ff8a65', '#c6ff00'];
-    for (var i = 0; i < 26; i++) {
-      effects.push({ type: 'spark', px: canvas.width / 2, py: 26, vx: rand(-170, 170), vy: rand(-230, -40), color: colors[i % colors.length], t: 0 });
+    var colors = ['#ffd54f', '#ffffff', '#ff8a65', '#c6ff00', '#4fc3f7', '#f06292'];
+    for (var i = 0; i < 20; i++) {
+      effects.push({ type: 'spark', px: canvas.width / 2, py: 26, vx: rand(-200, 200), vy: rand(-90, 30), g: 160, life: 1.0, color: colors[i % 4], t: 0 });
+    }
+    for (i = 0; i < 28; i++) {
+      var left = i % 2 === 0;
+      effects.push({ type: 'confetti', px: left ? 0 : canvas.width, py: rand(0, 10), vx: (left ? 1 : -1) * rand(60, 220), vy: rand(0, 70), g: 60, life: 1.2,
+        color: colors[i % colors.length], rot: rand(0, Math.PI), spin: rand(-12, 12), t: 0 });
     }
   }
 
@@ -833,8 +852,9 @@
     // 이번 판에 최고 기록을 넘기는 순간 (처음 하는 판은 빼고)
     if (!s.bestShown && s.prevBest > 0 && score() > s.prevBest) {
       s.bestShown = true;
-      s.bestFlash = 2.0;
+      s.bestFlash = BEST_FLASH;
       burst();
+      playFanfare();
     }
 
     // 앞으로 가면 뒤처짐 선도 캐릭터 뒤 5칸까지 끌려 올라온다 (내려가지는 않는다)
@@ -922,7 +942,11 @@
     updateEffects(dt);
     if (mode === 'over' && !s.overShown) {
       s.dieT += dt;
-      if (s.dieT >= DEATH_TIME) { s.overShown = true; show(overEl, true); }
+      if (s.dieT >= DEATH_TIME) {
+        s.overShown = true;
+        show(overEl, true);
+        if (s.unlocked.length) playFanfare(); // 이번 판에 캐릭터를 풀었으면 결과창이 뜰 때 팡파레
+      }
     }
     if (mode !== 'playing') return;
     s.time += dt;
@@ -954,14 +978,20 @@
     for (var i = effects.length - 1; i >= 0; i--) {
       var e = effects[i];
       e.t += dt;
-      if (e.type === 'spark') { e.px += e.vx * dt; e.py += e.vy * dt; e.vy += 320 * dt; }
-      else e.x += e.vx * dt;
+      if (e.type === 'spark' || e.type === 'confetti') {
+        e.px += e.vx * dt;
+        e.py += e.vy * dt;
+        e.vy += e.g * dt;
+        if (e.spin) e.rot += e.spin * dt;
+        if (e.t > e.life || e.py > FX_BAND) effects.splice(i, 1); // 위쪽 띠 밖으로 나가면 바로 사라진다
+        continue;
+      }
+      e.x += e.vx * dt;
       if (e.t > 1.0) effects.splice(i, 1);
     }
   }
 
   // ===== 그리기 =====
-  // row 번호를 화면 y 좌표(그 칸의 위쪽 끝)로 바꾼다
   // 줄 번호 → 화면 y 픽셀 (그림용 화면 기준). 정수 픽셀로 맞춰 줄 사이에 틈이 보이지 않게 한다
   function rowToY(row) {
     return Math.round((ROWS_ON_SCREEN - 1 - (row - s.viewBottom)) * CELL);
@@ -1309,11 +1339,30 @@
   function drawSparks() {
     for (var i = 0; i < effects.length; i++) {
       var e = effects[i];
-      if (e.type !== 'spark') continue;
-      ctx.globalAlpha = Math.max(0, 1 - e.t);
+      if (e.type !== 'spark' && e.type !== 'confetti') continue;
+      ctx.globalAlpha = Math.max(0, 1 - e.t / e.life);
       ctx.fillStyle = e.color;
-      ctx.fillRect(e.px - 3, e.py - 3, 6, 6);
+      if (e.type === 'spark') {
+        ctx.fillRect(e.px - 3, e.py - 3, 6, 6);
+      } else { // 색종이: 돌아가는 작은 직사각형
+        ctx.save();
+        ctx.translate(e.px, e.py);
+        ctx.rotate(e.rot);
+        ctx.fillRect(-4, -2, 8, 4);
+        ctx.restore();
+      }
     }
+    ctx.globalAlpha = 1;
+  }
+
+  // 최고 기록을 넘긴 순간: 화면 가장자리 금색 빛이 1초 동안 두 번 반짝인다 (판 안쪽은 가리지 않는다)
+  function drawBestGlow() {
+    var t = BEST_FLASH - s.bestFlash;
+    if (s.bestFlash <= 0 || t > 1.0) return;
+    ctx.globalAlpha = Math.abs(Math.sin(t * Math.PI * 2)) * 0.85;
+    ctx.strokeStyle = '#ffd54f';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, canvas.width - 6, canvas.height - 6);
     ctx.globalAlpha = 1;
   }
 
@@ -1352,6 +1401,7 @@
     drawPlayer();
     drawEffects();
     drawLine();
+    drawBestGlow();
     drawHud();
     drawSparks();
   }
@@ -1373,6 +1423,6 @@
 
   // 테스트용: 브라우저 없이 규칙을 검사할 때 상태를 읽는다
   window.__g1debug = function () {
-    return { mode: mode, s: s, rows: rows, getRow: getRow, carX: carX, gen: gen, botCross: botCross, save: save, chosen: chosen, effects: effects, stepSounds: stepSounds, rowToY: rowToY, deathSounds: deathSounds, bellSounds: bellSounds, farStart: farStart, audioOn: !!audio, difficulty: difficulty, T: { FREE: FREE, TREE: TREE, ROCK: ROCK, HOLE: HOLE, PAD: PAD, SUNK: SUNK } };
+    return { mode: mode, s: s, rows: rows, getRow: getRow, carX: carX, gen: gen, botCross: botCross, save: save, chosen: chosen, effects: effects, stepSounds: stepSounds, rowToY: rowToY, fanfareSounds: fanfareSounds, FX_BAND: FX_BAND, deathSounds: deathSounds, bellSounds: bellSounds, farStart: farStart, audioOn: !!audio, difficulty: difficulty, T: { FREE: FREE, TREE: TREE, ROCK: ROCK, HOLE: HOLE, PAD: PAD, SUNK: SUNK } };
   };
 })();
