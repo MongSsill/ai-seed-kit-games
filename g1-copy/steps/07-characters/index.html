@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>길 건너기 (완전 카피 연습)</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #1b1f2a;
+      color: #f2f2f2;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    #wrap {
+      position: relative;
+      width: min(432px, 100vw, calc((100vh - 48px) * 432 / 672));
+      aspect-ratio: 432 / 672;
+      box-shadow: 0 0 0 4px #10131a;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #3a7d3a;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(16, 19, 26, 0.72);
+      text-align: center;
+    }
+    .hidden { display: none !important; }
+    .newbest { color: #ffd54f; font-weight: bold; font-size: 20px; }
+    .overlay h1 { margin: 0 0 4px; font-size: 34px; }
+    .overlay h2 { margin: 0 0 4px; font-size: 28px; }
+    .overlay p { margin: 2px 0; }
+    .big { font-size: 40px; font-weight: bold; }
+    .small { font-size: 13px; color: #c9c9c9; }
+    button {
+      font: inherit;
+      font-size: 20px;
+      font-weight: bold;
+      padding: 10px 28px;
+      margin: 6px;
+      border: none;
+      border-radius: 10px;
+      background: #ffd54f;
+      color: #222;
+      cursor: pointer;
+    }
+    button:hover { background: #ffe082; }
+    .help { margin-top: 8px; font-size: 13px; color: #c9c9c9; }
+    .chars { display: flex; gap: 8px; margin: 8px 0; }
+    .card {
+      width: 96px;
+      padding: 8px 2px;
+      border-radius: 10px;
+      background: #2a3142;
+      border: 3px solid transparent;
+      cursor: pointer;
+    }
+    .card.selected { border-color: #ffd54f; }
+    .card.locked { cursor: default; }
+    .card canvas { display: block; width: 64px; height: 64px; margin: 0 auto; }
+    .card .name { font-weight: bold; margin-top: 4px; }
+    .card .prog { font-size: 12px; color: #c9c9c9; min-height: 30px; }
+    .quest { font-size: 14px; color: #e0e0e0; }
+    .quest.done { color: #c6ff00; font-weight: bold; }
+    button.sub { background: #90a4ae; }
+    button.sub:hover { background: #b0bec5; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="432" height="672"></canvas>
+
+    <div id="title" class="overlay">
+      <h1>길 건너기</h1>
+      <p>캐릭터를 고르고 앞으로, 더 앞으로.</p>
+      <div class="chars">
+        <div class="card" id="card-basic"><canvas id="pic-basic" width="64" height="64"></canvas><div class="name" id="name-basic">기본</div><div class="prog" id="prog-basic"></div></div>
+        <div class="card" id="card-frog"><canvas id="pic-frog" width="64" height="64"></canvas><div class="name" id="name-frog">?</div><div class="prog" id="prog-frog"></div></div>
+        <div class="card" id="card-bull"><canvas id="pic-bull" width="64" height="64"></canvas><div class="name" id="name-bull">?</div><div class="prog" id="prog-bull"></div></div>
+      </div>
+      <button id="start-btn">시작</button>
+      <p class="small">← → 로 고르기 · Enter 로 시작</p>
+      <p class="small">개구리: 앞 키를 1초 누르고 있으면 두 칸 점프<br>황소: 차나 열차에 치이는 것을 한 판에 한 번 막아 줌</p>
+    </div>
+
+    <div id="over" class="overlay hidden">
+      <h2>게임 오버</h2>
+      <p id="over-reason"></p>
+      <p>이번 기록</p>
+      <p class="big" id="over-score">0</p>
+      <p id="over-newbest" class="newbest hidden">새 최고 기록!</p>
+      <p>최고 기록 <b id="over-best">0</b></p>
+      <div>
+        <p id="q-frog" class="quest"></p>
+        <p id="q-bull" class="quest"></p>
+      </div>
+      <div>
+        <button id="restart-btn">다시 하기</button>
+        <button id="choose-btn" class="sub">캐릭터 고르기</button>
+      </div>
+      <p class="small">Enter 다시 하기 · Esc 캐릭터 고르기</p>
+    </div>
+  </div>
+  <div class="help">방향키 또는 WASD 로 한 칸씩. 가만히 있으면 아래에서 붉은 선이 따라옵니다.</div>
+  <script src="./game.js"></script>
+</body>
+</html>
