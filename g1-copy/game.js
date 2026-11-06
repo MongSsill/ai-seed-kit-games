@@ -41,7 +41,7 @@
   var BOT_LIMIT = 10;      // 10초 안에 건너야 한다 (붉은 선)
   var BOT_DT = 0.05;       // 봇이 시간을 보내는 단위 (초)
   var BOT_TRIALS = 6;      // 도착 시각과 서 있는 칸을 바꿔 6번 건너 본다
-  var BOT_NEED = 5;        // 6번 중 5번 넘게 건너야 그 덩어리를 쓴다
+  var BOT_NEED = 5;        // 6번 중 5번 이상 건너야 그 덩어리를 쓴다
   var SEG_TRIES = 30;      // 다시 만드는 횟수 한도
   var FAR_ROW = 100;       // 확인용 ?far 로 시작하는 줄
   var BELL_RINGS = 4;      // 열차 예고 종: 예고 1초 동안 땡 네 번 (0.25초마다)
@@ -89,10 +89,10 @@
     return d;
   }
   function writeSave() {
-    if (farStart) return; // 확인용 ?far 판은 저장하지 않는다
+    if (farStart || testUnlock) return; // 확인용 ?far, ?test 판은 저장하지 않는다 (진짜 기록이 부풀지 않게)
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* 저장 못 해도 계속 */ }
   }
-  // 확인용 주소: index.html?test 는 캐릭터를 모두 잠깐 풀어 준다 (저장하지 않음). index.html?reset 은 저장을 지운다
+  // 확인용 주소: index.html?test 는 캐릭터를 모두 잠깐 풀어 준다 (최고 기록, 치인 횟수도 저장하지 않음). index.html?reset 은 저장을 지운다
   // index.html?far 는 100칸 앞에서 시작한다 (어려워진 판을 바로 보려고. 저장하지 않음)
   var search = (window.location && window.location.search) || '';
   var farStart = search.indexOf('far') >= 0;
@@ -498,7 +498,7 @@
   }
 
   // ===== 건너갈 수 있나 (줄을 만들 때 검사) =====
-  // 이어진 찻길 줄과 이어진 통나무 줄마다 봇이 6번 건너 보고, 5번 넘게 건너면 쓴다
+  // 이어진 찻길 줄과 이어진 통나무 줄마다 봇이 6번 건너 보고, 5번 이상 건너면 쓴다
   function canCross(list) {
     var i = 0;
     while (i < list.length) {
@@ -631,7 +631,7 @@
       if (row.type === 'road' || isLogRow(row)) row.offset += row.speed * dt;
       else if (row.type === 'rail') {
         updateRail(row, dt);
-        // 붉은 불이 깜빡이는 동안, 화면에 보이고 붉은 선 앞에 있는 철길이면 땡땡 종이 울린다 (불이 켜진 때부터 0, 0.33, 0.67초)
+        // 붉은 불이 깜빡이는 동안, 화면에 보이고 붉은 선 앞에 있는 철길이면 땡땡 종이 울린다 (불이 켜진 때부터 0, 0.25, 0.5, 0.75초)
         // 붉은 선이 철길 줄의 아래 끝을 넘으면 지나간 곳이라 울리지 않는다
         if (row.phase === 'warn' && mode === 'playing' && r > s.line && r >= s.cameraBottom && r < s.cameraBottom + ROWS_ON_SCREEN) {
           var due = Math.min(BELL_RINGS, Math.floor((TRAIN_WARN - row.timer) / (TRAIN_WARN / BELL_RINGS) + 1e-6) + 1);
@@ -827,15 +827,6 @@
     if (drow < 0) s.backCount += 1;
     else s.backCount = 0;
 
-    // 개구리 해금 과제: 실제로 앞으로 간 횟수만 센다. 옆이나 뒤로 실제로 가면 0. 개구리를 쓰는 중에는 따지지 않는다
-    if (s.char !== 'frog') {
-      if (drow > 0) s.streak += 1;
-      else s.streak = 0;
-      if (s.streak > s.runBestStreak) s.runBestStreak = s.streak;
-      if (s.streak > save.bestStreak) { save.bestStreak = s.streak; writeSave(); }
-      if (!save.frog && s.streak >= FROG_STREAK) { save.frog = true; s.unlocked.push('frog'); writeSave(); }
-    }
-
     // 가장 멀리 간 줄을 넘을 때만 기록이 오른다
     if (s.row > s.maxRow) s.maxRow = s.row;
 
@@ -858,6 +849,19 @@
     if (cellAt(s.row, s.col) === HOLE) { gameOver('빈 공간에 빠졌다', 'hole'); return; }
     if (getRow(s.row).type === 'river' && !standOnRiver()) { gameOver('물에 빠졌다', 'water'); return; }
     checkTraffic();
+    if (mode !== 'playing') return; // 차나 열차에 치인 걸음
+    countStreak(drow);
+  }
+
+  // 개구리 해금 과제: 실제로 앞으로 가서 살아남은 걸음만 센다 (죽는 걸음은 세지 않는다).
+  // 옆이나 뒤로 실제로 가면 0. 개구리를 쓰는 중에는 따지지 않는다
+  function countStreak(drow) {
+    if (s.char === 'frog') return;
+    if (drow > 0) s.streak += 1;
+    else s.streak = 0;
+    if (s.streak > s.runBestStreak) s.runBestStreak = s.streak;
+    if (s.streak > save.bestStreak) { save.bestStreak = s.streak; writeSave(); }
+    if (!save.frog && s.streak >= FROG_STREAK) { save.frog = true; s.unlocked.push('frog'); writeSave(); }
   }
 
   // ===== 키 =====
