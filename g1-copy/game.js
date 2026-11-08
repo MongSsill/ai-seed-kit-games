@@ -23,15 +23,20 @@
   var ROAD_SPEED = [0.6, 1.5]; // 차 빠르기는 줄마다 평균의 0.6~1.5배 (숫자가 작을수록 빠르다)
   var ROAD_SPEED_DIFF = 0.35;  // 같은 방향으로 붙은 두 찻길은 빠르기가 이만큼 넘게 다르다
   var CAR_GAP_SEC = [1.3, 2.8]; // 차 사이 틈은 1.3~2.8초 동안 차가 가는 거리 (적어도 2.5칸)
+  var BODY = [8 / 48, 40 / 48]; // 캐릭터가 치이는 판정: 몸통 그림 폭 (한 칸 48픽셀 중 8~40). 세 캐릭터 모두 같다
+  var CAR_FRONT_CUT = 3 / 48;   // 차 판정 앞머리: 그림 끝에 맞춘다 (차 그림은 칸 끝에서 3픽셀 안쪽)
+  var CAR_TAIL_CUT = 15 / 48;   // 차 판정 꼬리: 그림보다 12픽셀 더 짧게. 지나간 차 꼬리에 치이지 않게 (짐작한 수치, 해 보고 조정)
   var LOG_EXTRA = 3;       // 통나무는 길어서 화면 바깥으로 3칸 더 간 뒤 반대편에서 나온다
   var LOG_SEC = 0.75;      // 통나무 한 칸 평균 0.75초 (차보다 느리다)
   var LOG_SPEED = [0.7, 1.4]; // 통나무 빠르기는 줄마다 평균의 0.7~1.4배
   var LOG_SPEED_DIFF = 0.3;   // 붙은 두 통나무 줄은 빠르기가 이만큼 넘게 다르다
   var LOG_GAP = [1.2, 3.0];   // 통나무 사이 물은 1.2~3칸 (물 구간이 3칸을 넘지 않는다)
+  var LOG_INSET = 2 / 48;     // 통나무 그림은 칸 끝에서 2픽셀 안쪽. 캐릭터 몸통 그림이 이 안에 들게 선다
   var WATER = 0, PAD = 1, SUNK = 2; // 고인 물 줄의 칸 값: 물, 사라지는 발판, 가라앉은 자리
   var FROG_STREAK = 15;    // 개구리 해금: 한 판에서 연속 전진 15번
   var BULL_HITS = 30;      // 황소 해금: 여러 판에 걸쳐 차나 열차에 치인 횟수 30번
-  var FROG_HOLD = 1.0;     // 개구리: 앞 키를 1초 누르고 있으면 두 칸 점프
+  var FROG_HOLD = 0.5;     // 개구리: 앞 키를 0.5초 누르고 있다가 떼면 두 칸 점프
+  var FROG_SQUAT = [1.12, 0.8]; // 개구리가 앞 키를 누르고 있는 동안 웅크린 모양 (가로, 세로 배율. 모아도 그대로)
   var BULL_SAFE_TIME = 1.0; // 황소가 막아 준 뒤 잠깐 다시 치이지 않는 시간 (초)
   var DEATH_TIME = 0.9;    // 죽는 모습을 보여 준 뒤 결과창을 띄우기까지 (초)
   // 건너갈 수 있나 검사: 찻길과 통나무 덩어리를 만들 때 사람처럼 움직이는 봇이 먼저 건너 본다
@@ -71,6 +76,9 @@
   var chooseBtn = document.getElementById('choose-btn');
   var questFrogEl = document.getElementById('q-frog');
   var questBullEl = document.getElementById('q-bull');
+  var pauseEl = document.getElementById('pause');
+  var pauseBtns = ['pause-resume', 'pause-restart', 'pause-title'].map(function (id) { return document.getElementById(id); });
+  var pauseSel = 0; // 일시정지 화면에서 고른 칸 (0 계속하기, 1 다시 하기, 2 시작 화면)
 
   function show(el, on) {
     if (on) el.classList.remove('hidden');
@@ -115,7 +123,8 @@
   var deathSounds = []; // 낸 게임 오버 소리 종류 (테스트용)
   var bellSounds = 0;   // 낸 열차 종소리 수 (테스트용)
   var fanfareSounds = 0; // 낸 팡파레 수 (테스트용)
-  var noiseBuf = null;  // 쾅, 풍덩에 쓰는 지직거리는 소리 (한 번만 만든다)
+  var knockSounds = 0;  // 황소가 날려 버린 소리 수 (테스트용)
+  var noiseBuf = null;  // 쾅, 퐁당, 휘이잉에 쓰는 지직거리는 소리 (한 번만 만든다)
   function initAudio() {
     if (audio) {
       if (audio.state === 'suspended' && audio.resume) audio.resume();
@@ -200,10 +209,30 @@
     } else if (kind === 'line') { // 뿌우: 낮게 두 번 내려간다
       tone('square', 233, 220, 0, 0.2, 0.12);
       tone('square', 175, 150, 0.22, 0.45, 0.12);
-    } else if (kind === 'back') { // 삐빅: 짧고 높게 두 번
-      tone('square', 1046, 1000, 0, 0.08, 0.1);
-      tone('square', 1318, 1250, 0.11, 0.1, 0.1);
+    } else if (kind === 'back') { // 끼룩: 날아오는 새의 울음. "끼"는 짧게 올라가고 "룩"은 내려간다
+      tone('sawtooth', 1400, 2200, 0, 0.11, 0.06);
+      tone('triangle', 1400, 2200, 0, 0.11, 0.1);
+      tone('sawtooth', 1900, 1000, 0.13, 0.17, 0.06);
+      tone('triangle', 1900, 1000, 0.13, 0.17, 0.1);
     }
+  }
+
+  // 황소가 차나 열차를 날려 버릴 때. 차는 쿵 부딪힌 뒤 휘이잉 하고 낮아지며 멀어진다 (무게감은 열차보다 가볍게)
+  // 열차는 더 묵직하게: 쾅과 쇠 울림 뒤에 더 낮은 휘이잉 (치여 죽는 콰앙과 구별되게 날아가는 소리를 남긴다)
+  function playKnock(kind) {
+    if (!audio) return;
+    knockSounds += 1;
+    if (kind === 'train') {
+      noise(0, 0.3, 0.7, 'lowpass', 900, 120);        // 쾅
+      tone('sine', 80, 35, 0, 0.35, 0.6);
+      tone('triangle', 330, 300, 0, 0.25, 0.12);       // 쇠 울림
+      noise(0.12, 0.6, 0.15, 'bandpass', 1200, 150);  // 낮은 휘이잉
+      return;
+    }
+    noise(0, 0.15, 0.55, 'lowpass', 1200, 200);     // 쿵
+    tone('sine', 110, 50, 0, 0.18, 0.45);
+    noise(0.05, 0.55, 0.2, 'bandpass', 2600, 350);  // 휘이잉
+    tone('triangle', 950, 260, 0.05, 0.55, 0.08);
   }
 
   // 팡파레 (빠바밤!): 도·미·솔을 빠르게 올리고 높은 도를 조금 길게. 최고 기록을 넘긴 순간과 해금한 판의 결과창에서
@@ -228,7 +257,7 @@
   var effects = []; // 날아가는 차, 반짝이 같은 잠깐 보이는 것들
 
   // ===== 상태 =====
-  var mode = 'title'; // title(시작 화면) | playing(플레이 중) | over(결과창)
+  var mode = 'title'; // title(시작 화면) | playing(플레이 중) | paused(일시정지) | over(결과창)
   var s = null;       // 이번 판의 상태
 
   function newRun() {
@@ -582,9 +611,10 @@
     return mod(car.base + row.offset + row.speed * t, row.L) - row.extra;
   }
 
-  // 그 찻길의 col 칸에 t 초 뒤 닿아 있는 차 (없으면 null)
+  // 그 찻길의 col 칸에 t 초 뒤 닿아 있는 차 (없으면 null). 줄을 만들 때 봇만 쓴다
+  // 봇은 캐릭터보다 넓은 판정(몸통 0.15~0.85, 차 전체 길이)으로 건너 봐서, 넉넉히 건너갈 수 있는 판만 남긴다
   function carAtCell(row, col, t) {
-    var a = col + 0.15, b = col + 0.85; // 캐릭터 몸통 (칸보다 조금 작게)
+    var a = col + 0.15, b = col + 0.85; // 봇 몸통 (칸보다 조금 작게)
     for (var i = 0; i < row.cars.length; i++) {
       var car = row.cars[i], x = carXAt(row, car, t);
       if (x < b && x + car.len > a) return car;
@@ -592,7 +622,19 @@
     return null;
   }
 
-  // 통나무 줄의 col 에 t 초 뒤 서면 올라서는 통나무 칸의 위치 (물이면 null)
+  // 캐릭터가 그 찻길의 col 칸에서 지금 치이는 차 (없으면 null). 차 앞머리는 그림 끝, 꼬리는 그림보다 짧게 본다
+  function carHitting(row, col) {
+    var a = col + BODY[0], b = col + BODY[1];
+    var cutL = row.dir > 0 ? CAR_TAIL_CUT : CAR_FRONT_CUT; // 오른쪽으로 가는 차는 왼쪽 끝이 꼬리
+    var cutR = row.dir > 0 ? CAR_FRONT_CUT : CAR_TAIL_CUT;
+    for (var i = 0; i < row.cars.length; i++) {
+      var car = row.cars[i], x = carX(row, car);
+      if (x + cutL < b && x + car.len - cutR > a) return car;
+    }
+    return null;
+  }
+
+  // 통나무 줄의 col 에 t 초 뒤 서면 올라서는 통나무 칸의 위치 (물이면 null). 줄을 만들 때 봇만 쓴다
   function logCellAt(row, col, t) {
     var center = col + 0.5;
     for (var i = 0; i < row.cars.length; i++) {
@@ -602,11 +644,22 @@
     return null;
   }
 
-  // 지금 칸에서 강 위에 서 있을 수 있나. 통나무 위면 통나무 칸에 맞춰 선다
+  // 캐릭터가 통나무 줄의 col 에 서면 서는 자리 (물이면 null). 사는지는 가운데 점이 통나무 위인지로 본다
+  // 몸통 그림이 통나무 그림 안이면 그 자리 그대로 (옆으로 옮기지 않아 곧게 앞으로 간다), 끝 밖으로 삐져나오면 그만큼만 안쪽으로 민다
+  function logLandAt(row, col) {
+    var center = col + 0.5;
+    for (var i = 0; i < row.cars.length; i++) {
+      var x = carX(row, row.cars[i]), len = row.cars[i].len;
+      if (center >= x && center <= x + len) return Math.min(x + len - LOG_INSET - BODY[1], Math.max(x + LOG_INSET - BODY[0], col));
+    }
+    return null;
+  }
+
+  // 지금 칸에서 강 위에 서 있을 수 있나. 통나무 위면 끝에 걸치지 않게 선다
   function standOnRiver() {
     var row = getRow(s.row);
     if (row.still) return row.pads[s.col] === PAD;
-    var x = logCellAt(row, s.col, 0);
+    var x = logLandAt(row, s.col);
     if (x === null) return false;
     s.col = x;
     return true;
@@ -661,9 +714,9 @@
   // 그 칸에 차나 열차가 닿아 있으면 무엇인지 돌려준다
   function trafficAt(r, col) {
     var row = getRow(r);
-    var a = col + 0.15, b = col + 0.85; // 캐릭터 몸통 (칸보다 조금 작게)
+    var a = col + BODY[0], b = col + BODY[1]; // 캐릭터 몸통 그림 폭
     if (row.type === 'road') {
-      var car = carAtCell(row, col, 0);
+      var car = carHitting(row, col);
       if (car) return { kind: 'car', row: row, car: car, r: r };
     } else if (row.type === 'rail' && row.phase === 'pass') {
       if (row.trainX < b && row.trainX + TRAIN_LEN > a) return { kind: 'train', row: row, r: r };
@@ -690,6 +743,7 @@
 
   // 황소가 막은 차나 열차를 길에서 치우고, 온 쪽으로 빙글빙글 날려 보낸다
   function knockAway(hit) {
+    playKnock(hit.kind);
     if (hit.kind === 'car') {
       var i = hit.row.cars.indexOf(hit.car);
       if (i >= 0) hit.row.cars.splice(i, 1);
@@ -864,7 +918,7 @@
     var wantBottom = s.row + TOP_MARGIN - (ROWS_ON_SCREEN - 1);
     if (wantBottom > s.cameraBottom) s.cameraBottom = wantBottom;
 
-    if (s.backCount >= BACK_LIMIT) { gameOver('뒤로 4번 연속 갔다', 'back'); return; }
+    if (s.backCount >= BACK_LIMIT) { gameOver('새가 낚아채갔다', 'back'); return; }
     if (s.line >= s.row) { gameOver('붉은 선에 따라잡혔다', 'line'); return; }
     if (cellAt(s.row, s.col) === HOLE) { gameOver('빈 공간에 빠졌다', 'hole'); return; }
     if (getRow(s.row).type === 'river' && !standOnRiver()) { gameOver('물에 빠졌다', 'water'); return; }
@@ -892,15 +946,57 @@
     ArrowRight: [1, 0], KeyD: [1, 0]
   };
 
+  // ===== 일시정지: 플레이 중 Esc. 판을 그대로 멈추고 계속하기, 다시 하기, 시작 화면 가운데 고른다 =====
+  function pauseGame() {
+    mode = 'paused';
+    s.charge = null; // 개구리가 모으던 것은 버린다
+    pauseSel = 0;
+    refreshPause();
+    show(pauseEl, true);
+  }
+  function resumeGame() {
+    mode = 'playing';
+    show(pauseEl, false);
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  }
+  // 고른 칸을 정한다. 판을 그만두면 죽은 것이 아니므로 치인 횟수는 그대로 두고, 최고 기록만 남긴다
+  function pauseChoose(i) {
+    if (i === 0) { resumeGame(); return; }
+    if (score() > save.best) { save.best = score(); writeSave(); }
+    show(pauseEl, false);
+    if (i === 1) startRun();
+    else goToTitle();
+  }
+  function refreshPause() {
+    pauseBtns.forEach(function (b, i) { b.classList.toggle('sel', i === pauseSel); });
+  }
+  // 일시정지 화면의 키: ↑ ↓ 로 고르고 Enter 로 정한다. Esc 는 계속하기
+  function pauseKey(e) {
+    if (e.code === 'Escape') { resumeGame(); return; }
+    if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); pauseChoose(pauseSel); return; }
+    var d = KEYS[e.code];
+    if (!d || d[1] === 0) return;
+    e.preventDefault();
+    if (e.repeat) return;
+    pauseSel = (pauseSel - d[1] + pauseBtns.length) % pauseBtns.length; // 위 키는 위 칸으로
+    refreshPause();
+  }
+
   window.addEventListener('keydown', function (e) {
+    if (mode === 'paused') { pauseKey(e); return; }
+    // 죽는 모습을 보여 주는 동안(결과창이 뜨기 전)은 Enter 와 Esc 를 받지 않는다
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
-      if (mode === 'title' || mode === 'over') {
+      if (mode === 'title' || (mode === 'over' && s.overShown)) {
         e.preventDefault();
         startRun();
       }
       return;
     }
-    if (mode === 'over' && e.code === 'Escape') { goToTitle(); return; }
+    if (e.code === 'Escape') {
+      if (mode === 'playing') pauseGame();
+      else if (mode === 'over' && s.overShown) goToTitle();
+      return;
+    }
     var d = KEYS[e.code];
     if (!d) return;
     e.preventDefault();
@@ -910,23 +1006,31 @@
       return;
     }
     if (mode !== 'playing') return;
-    if (s.char === 'frog' && d[1] === 1) { // 개구리: 앞 키를 떼면 한 칸, 1초 누르고 있으면 두 칸
+    if (s.char === 'frog' && d[1] === 1) { // 개구리: 앞 키를 떼면 한 칸, 0.5초 넘게 누르고 있다가 떼면 두 칸
       if (s.charge === null) s.charge = 0;
       return;
     }
-    tryMove(d[0], d[1]);
+    if (tryMove(d[0], d[1])) s.charge = null; // 개구리가 모으는 중에 다른 쪽으로 실제로 움직이면 모은 것을 버린다 (앞 키를 떼도 안 감)
   });
+
+  // 창에서 벗어나면 키를 떼는 신호가 오지 않으므로, 개구리가 모은 것을 버린다
+  window.addEventListener('blur', function () { s.charge = null; });
 
   window.addEventListener('keyup', function (e) {
     var d = KEYS[e.code];
     if (!d || d[1] !== 1 || mode !== 'playing' || s.charge === null) return;
-    s.charge = null; // 1초가 되기 전에 뗐으면 한 칸
-    tryMove(0, 1);
+    var full = s.charge >= FROG_HOLD;
+    s.charge = null;
+    if (full) frogJump(); // 0.5초 넘게 모았다가 떼면 두 칸
+    else tryMove(0, 1);   // 그 전에 떼면 한 칸
   });
 
   startBtn.addEventListener('click', function () { if (mode !== 'playing') startRun(); });
   restartBtn.addEventListener('click', function () { if (mode !== 'playing') startRun(); });
   chooseBtn.addEventListener('click', function () { if (mode === 'over') goToTitle(); });
+  pauseBtns.forEach(function (b, i) {
+    b.addEventListener('click', function () { if (mode === 'paused') pauseChoose(i); });
+  });
   CHARS.forEach(function (c) {
     document.getElementById('card-' + c.id).addEventListener('click', function () {
       if (mode === 'title' && isUnlocked(c.id)) { chosen = c.id; refreshCards(); }
@@ -935,6 +1039,7 @@
 
   // ===== 매 화면마다 =====
   function update(dt) {
+    if (mode === 'paused') return; // 일시정지 중에는 차, 열차, 붉은 선, 화면까지 모두 멈춘다
     // 그림용 화면은 규칙용 화면 위치를 미끄러지듯 따라간다 (이징)
     s.viewBottom += (s.cameraBottom - s.viewBottom) * (1 - Math.exp(-dt / CAMERA_EASE));
     if (Math.abs(s.cameraBottom - s.viewBottom) < 0.01) s.viewBottom = s.cameraBottom; // 0.5 픽셀보다 덜 남으면 딱 맞춘다
@@ -954,14 +1059,7 @@
     if (s.line >= s.row) { gameOver('붉은 선에 따라잡혔다', 'line'); return; }
     if (s.invuln > 0) s.invuln -= dt;
     if (s.bestFlash > 0) s.bestFlash -= dt;
-    if (s.charge !== null) {
-      s.charge += dt;
-      if (s.charge >= FROG_HOLD) {
-        s.charge = null;
-        frogJump();
-        if (mode !== 'playing') return;
-      }
-    }
+    if (s.charge !== null) s.charge += dt; // 개구리가 점프를 모으는 시간. 뛰는 것은 키를 뗄 때
     var here = getRow(s.row);
     if (isLogRow(here)) { // 통나무를 탄 채로 함께 떠내려간다
       s.col += here.speed * dt;
@@ -1225,7 +1323,31 @@
     }
   }
 
-  // 끝나는 모습: 차·열차는 찌그러짐, 물은 가라앉으며 출렁임, 빈 공간은 작아지며 떨어짐, 그 밖은 흔들리며 흐려짐
+  // 새: 뒤로 4번 연속 가면 날아와 캐릭터를 낚아채 간다. (bx, by) 는 몸 가운데, d 는 나는 방향 (1 이면 오른쪽)
+  function drawBird(bx, by, d, t) {
+    var wingY = -10 - 18 * Math.sin(t * 40); // 날갯짓: 날개 끝이 위아래로
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.scale(d, 1); // 머리가 나는 쪽을 본다
+    ctx.fillStyle = '#3e2723'; // 꼬리
+    ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-30, -6); ctx.lineTo(-30, 6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#5d4037'; // 몸
+    ctx.beginPath(); ctx.ellipse(0, 0, 20, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4e342e'; // 날개
+    ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(-14, wingY - 12); ctx.lineTo(8, -3); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fafafa'; // 머리
+    ctx.beginPath(); ctx.arc(19, -5, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffb300'; // 부리
+    ctx.beginPath(); ctx.moveTo(25, -8); ctx.lineTo(33, -4); ctx.lineTo(25, -1); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#111111'; // 눈
+    ctx.fillRect(19, -8, 3, 3);
+    ctx.strokeStyle = '#ffb300'; // 발
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-5, 7); ctx.lineTo(-7, 15); ctx.moveTo(5, 7); ctx.lineTo(3, 15); ctx.stroke();
+    ctx.restore();
+  }
+
+  // 끝나는 모습: 차는 찌그러짐, 열차는 날아감, 통나무에 떠내려가면 흘러가 사라짐, 물은 가라앉으며 출렁임, 빈 공간은 작아지며 떨어짐, 뒤로 4번은 새가 낚아챔, 붉은 선은 흔들리며 흐려짐
   function drawDeath(x, y) {
     var t = s.dieT, kind = s.deathKind, i;
     if (kind === 'car') { // 차에 치이면 찌그러진다
@@ -1284,6 +1406,25 @@
         drawCharacter(ctx, s.char, -CELL / 2, -CELL / 2, CELL);
         ctx.restore();
       }
+    } else if (kind === 'back') { // 뒤로 4번 연속: 캐릭터에서 먼 쪽 위에서 새가 날아와 낚아채고 화면 위로 데려간다
+      var hx = x + CELL / 2, d = hx < canvas.width / 2 ? -1 : 1;
+      var grab = 0.35, bx, by; // 0.35초에 캐릭터 머리 위에 닿는다
+      if (t < grab) {
+        var e = 1 - Math.pow(1 - t / grab, 2); // 다가올수록 느려진다
+        bx = hx - d * 260 * (1 - e);
+        by = -60 + (y - 6 + 60) * e;
+        drawCharacter(ctx, s.char, x, y, CELL);
+      } else {
+        var p = Math.min(1, (t - grab) / (DEATH_TIME - grab)), up = p * p; // 점점 빠르게 날아오른다
+        bx = hx + d * 200 * up;
+        by = y - 6 + (-120 - (y - 6)) * up;
+        ctx.save();
+        ctx.translate(bx, by + 6 + CELL / 2);
+        ctx.rotate(Math.sin(t * 12) * 0.15); // 매달려 흔들린다
+        drawCharacter(ctx, s.char, -CELL / 2, -CELL / 2, CELL);
+        ctx.restore();
+      }
+      drawBird(bx, by, d, t);
     } else {
       var shake = Math.sin(t * 60) * 4 * Math.max(0, 1 - t / 0.5);
       ctx.save();
@@ -1298,7 +1439,15 @@
     var y = rowToY(s.row);
     if (mode === 'over' && s.deathKind) { drawDeath(x, y); return; }
     if (s.invuln > 0 && Math.floor(s.invuln * 10) % 2 === 0) return; // 황소가 막아 준 뒤 깜빡임
-    drawCharacter(ctx, s.char, x, y, CELL);
+    if (s.charge !== null) { // 개구리가 앞 키를 누르고 있는 동안: 누르자마자 웅크린다 (움직이는 것은 뗄 때)
+      ctx.save();
+      ctx.translate(x + CELL / 2, y + CELL - 8); // 발밑(몸통 그림 아래 끝)을 기준으로 눌린다
+      ctx.scale(FROG_SQUAT[0], FROG_SQUAT[1]);
+      drawCharacter(ctx, s.char, -CELL / 2, -CELL + 8, CELL);
+      ctx.restore();
+    } else {
+      drawCharacter(ctx, s.char, x, y, CELL);
+    }
     if (s.charge !== null) { // 개구리 점프를 모으는 중: 둘레에 차오르는 원
       ctx.strokeStyle = '#c6ff00';
       ctx.lineWidth = 3;
@@ -1382,13 +1531,14 @@
       ctx.fillText('최고 기록!', canvas.width / 2, 62);
       ctx.globalAlpha = 1;
     }
-    if (s.char === 'bull') { // 황소 막기가 남았는지
-      ctx.fillStyle = 'rgba(0,0,0,0.45)';
-      ctx.fillRect(8, 8, 100, 30);
-      ctx.fillStyle = s.shieldUsed ? '#9e9e9e' : '#ffd54f';
+    if (s.char === 'bull') { // 황소 막기가 남았는지. 상자는 글자 폭에 맞춘다 (양옆 여백 6픽셀)
+      var label = s.shieldUsed ? '막기 다 씀' : '막기 1번 남음';
       ctx.font = 'bold 15px sans-serif';
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.fillRect(8, 8, ctx.measureText(label).width + 12, 30);
+      ctx.fillStyle = s.shieldUsed ? '#9e9e9e' : '#ffd54f';
       ctx.textAlign = 'left';
-      ctx.fillText(s.shieldUsed ? '막기 다 씀' : '막기 1번 남음', 14, 23);
+      ctx.fillText(label, 14, 23);
     }
   }
 
@@ -1423,6 +1573,6 @@
 
   // 테스트용: 브라우저 없이 규칙을 검사할 때 상태를 읽는다
   window.__g1debug = function () {
-    return { mode: mode, s: s, rows: rows, getRow: getRow, carX: carX, gen: gen, botCross: botCross, save: save, chosen: chosen, effects: effects, stepSounds: stepSounds, rowToY: rowToY, fanfareSounds: fanfareSounds, FX_BAND: FX_BAND, deathSounds: deathSounds, bellSounds: bellSounds, farStart: farStart, audioOn: !!audio, difficulty: difficulty, T: { FREE: FREE, TREE: TREE, ROCK: ROCK, HOLE: HOLE, PAD: PAD, SUNK: SUNK } };
+    return { mode: mode, s: s, rows: rows, getRow: getRow, carX: carX, gen: gen, botCross: botCross, save: save, chosen: chosen, effects: effects, stepSounds: stepSounds, rowToY: rowToY, fanfareSounds: fanfareSounds, knockSounds: knockSounds, FX_BAND: FX_BAND, deathSounds: deathSounds, bellSounds: bellSounds, farStart: farStart, audioOn: !!audio, difficulty: difficulty, T: { FREE: FREE, TREE: TREE, ROCK: ROCK, HOLE: HOLE, PAD: PAD, SUNK: SUNK } };
   };
 })();
