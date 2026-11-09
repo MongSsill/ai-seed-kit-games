@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>태그 보스전 (큰 게임의 일부 연습)</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #141720;
+      color: #f2f2f2;
+      font-family: "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    #wrap {
+      position: relative;
+      width: min(720px, 100vw, calc((100vh - 48px) * 720 / 480));
+      aspect-ratio: 720 / 480;
+      box-shadow: 0 0 0 4px #0c0e14;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      background: #1d2230;
+    }
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(12, 14, 20, 0.74);
+      text-align: center;
+    }
+    .hidden { display: none !important; }
+    .overlay h1 { margin: 0 0 4px; font-size: 34px; }
+    .overlay h2 { margin: 0 0 4px; font-size: 30px; }
+    .overlay p { margin: 2px 0; }
+    .big { font-size: 40px; font-weight: bold; }
+    .small { font-size: 13px; color: #c9c9c9; }
+    .win { color: #ffd54f; }
+    .lose { color: #ef9a9a; }
+    button {
+      font: inherit;
+      font-size: 20px;
+      font-weight: bold;
+      padding: 10px 28px;
+      margin: 6px;
+      border: none;
+      border-radius: 10px;
+      background: #ffd54f;
+      color: #222;
+      cursor: pointer;
+    }
+    button:hover { background: #ffe082; }
+    .help { margin-top: 8px; font-size: 13px; color: #c9c9c9; }
+    .keys { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-size: 14px; text-align: left; margin: 6px 0; }
+    .keys b { color: #ffd54f; }
+    table.rank { border-collapse: collapse; font-size: 15px; margin: 4px 0; }
+    table.rank td { padding: 2px 10px; }
+    table.rank tr.me td { color: #ffd54f; font-weight: bold; text-shadow: 0 0 8px #ffd54f; }
+    #groggy {
+      background: rgba(12, 14, 20, 0.35);
+      justify-content: flex-end;
+      padding-bottom: 150px;
+    }
+    #groggy-btn {
+      font-size: 26px;
+      padding: 14px 40px;
+      background: #ff7043;
+      color: #fff;
+      box-shadow: 0 0 24px #ff7043;
+      animation: pulse 0.6s ease-in-out infinite alternate;
+    }
+    #groggy-btn:hover { background: #ff8a65; }
+    @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="720" height="480"></canvas>
+
+    <div id="title" class="overlay">
+      <h1>태그 보스전</h1>
+      <p>전조가 빛나는 순간 회피나 태그로 반격하고, 3분 안에 보스를 쓰러뜨린다.</p>
+      <div class="keys">
+        <span><b>방향키</b> 이동</span><span><b>Shift</b> 회피</span>
+        <span><b>A</b> 기본 공격</span><span><b>Space</b> 태그</span>
+        <span><b>S</b> 특수 스킬</span><span><b>F</b> 그로기 (버튼 클릭도 됨)</span>
+        <span><b>D</b> 궁극 스킬</span><span><b>Enter</b> 시작 · 다시 하기</span>
+      </div>
+      <button id="start-btn">시작</button>
+      <p class="small">노란 전조: 회피 반격 또는 태그 반격 · 붉은 전조: 회피 반격만</p>
+    </div>
+
+    <div id="result" class="overlay hidden">
+      <h2 id="result-title">격파 성공</h2>
+      <p id="result-reason" class="small"></p>
+      <p>클리어타임</p>
+      <p class="big" id="result-time">0.00</p>
+      <div id="rank-wrap">
+        <p class="small">랭킹 (이 브라우저)</p>
+        <table class="rank" id="rank-table"></table>
+      </div>
+      <button id="restart-btn">다시 하기</button>
+      <p class="small">Enter 다시 하기</p>
+    </div>
+
+    <div id="groggy" class="overlay hidden">
+      <button id="groggy-btn">그로기!</button>
+      <p class="small">F 또는 클릭</p>
+    </div>
+  </div>
+  <div class="help">PC 키보드 전용 · 방향키 이동 · A 공격 · S 특수 · D 궁극 · Shift 회피 · Space 태그 · F 그로기</div>
+  <script src="./game.js"></script>
+</body>
+</html>
