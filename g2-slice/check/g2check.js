@@ -141,21 +141,43 @@ function fresh(search, seed) {
   g.player.x = a.ox + a.dir.x * 60; g.player.y = a.oy + a.dir.y * 60;
   check(G, '옮긴 자리는 범위 안', h.inAttack(a, g.player.x, g.player.y), a.p.id);
   var hp0 = g.chars[g.cur].hp;
-  h.run(0.6);
+  h.run(h.consts.TELEGRAPH + 0.1);
   check(G, '전조 끝에 맞아 체력 -1', g.chars[g.cur].hp === hp0 - 1, [hp0, g.chars[g.cur].hp]);
   // 쓰러지면 다음 캐릭터
   g.chars[0].hp = 1; g.cur = 0;
   untilTelegraph(h);
   a = g.boss.attack; g.player.x = a.ox + a.dir.x * 60; g.player.y = a.oy + a.dir.y * 60; g.invuln = 0;
-  h.run(0.6);
+  h.run(h.consts.TELEGRAPH + 0.1);
   check(G, '0 이 되면 다음 캐릭터(1)', g.cur === 1 && g.chars[0].hp <= 0, [g.cur, g.chars[0].hp]);
   // 셋이 다 쓰러지면 실패
   g.chars[1].hp = 1; g.chars[2].hp = 0;
   untilTelegraph(h);
   a = g.boss.attack; g.player.x = a.ox + a.dir.x * 60; g.player.y = a.oy + a.dir.y * 60; g.invuln = 0;
-  h.run(0.6);
+  h.run(h.consts.TELEGRAPH + 0.1);
   check(G, '셋이 다 쓰러지면 result', h.getState() === 'result');
   check(G, '실패 이유 글', h.els['result-reason'].textContent.indexOf('셋이 모두') === 0, h.els['result-reason'].textContent);
+})();
+
+// ---- 3-2. 구석·벽에서 보스에게 갇히지 않음 (2026-11-22 "모서리에 몰리면 보스에게 껴서 갇힌다") ----
+(function () {
+  var G = '갇힘';
+  var minD = 30 + 14; // BOSS_R + PLAYER_R
+  var cases = [
+    { name: '구석', px: 186, py: 186, bx: 170, by: 170, key: 'ArrowLeft' },
+    { name: '벽', px: 186, py: 0, bx: 170, by: 0, key: 'ArrowUp' },
+    { name: '구석 반대편', px: -186, py: -186, bx: -170, by: -170, key: 'ArrowRight' } // 벽을 따라 빠져나감 (보스 쪽으로 걸으면 보스를 뚫지 못한다)
+  ];
+  cases.forEach(function (cs, i) {
+    var h = fresh('', 400 + i), g = h.getGame();
+    g.boss.phase = 'wait'; g.boss.t = 99; g.boss.attack = null;
+    g.player.x = cs.px; g.player.y = cs.py; g.boss.x = cs.bx; g.boss.y = cs.by;
+    h.run(0.05);
+    var d = Math.hypot(g.player.x - g.boss.x, g.player.y - g.boss.y);
+    check(G, cs.name + ': 한 틱 뒤 겹치지 않음', d >= minD - 0.6, d);
+    var x0 = g.player.x, y0 = g.player.y;
+    h.key(cs.key); h.run(0.5); h.keyUp(cs.key);
+    check(G, cs.name + ': 방향키로 빠져나감 (0.5초에 40 넘게)', Math.hypot(g.player.x - x0, g.player.y - y0) > 40, [x0, y0, g.player.x, g.player.y]);
+  });
 })();
 
 // ---- 4. 회피와 회피 반격 ----
@@ -179,12 +201,20 @@ function fresh(search, seed) {
     h.run(0.25);
     check(G, colors[ci] + ' 느려지는 동안 시계 멈춤', g.clock === clk, [clk, g.clock]);
     check(G, colors[ci] + ' 느려짐이 0.6초 간다 (0.25초 뒤 아직)', g.slow > 0.3, g.slow);
-    check(G, colors[ci] + ' 느려지는 동안 확대 유지', g.zoom > 1.4, g.zoom);
+    check(G, colors[ci] + ' 느려지는 동안 확대 1.2배 유지', h.consts.ZOOM === 1.2 && near(g.zoom, h.consts.ZOOM, 0.01), g.zoom); // 반격 확대 1.45 → 1.2 (카메라가 이미 1.6배. 2026-11-22)
     h.run(0.4);
     check(G, colors[ci] + ' 0.65초 뒤 느려짐 끝', g.slow <= 0, g.slow);
     h.run(0.8);
     check(G, colors[ci] + ' 반격한 공격에는 안 맞음', g.chars[g.cur].hp === hp0);
   }
+  // 전조 끝 무렵(남은 0.08초 안)에 눌러도 반격이 된다 (반격은 전조 0.65초 내내. 2026-11-22 reviewer: 앞쪽만 검사했다)
+  var hl = fresh('', 15), gl = hl.getGame();
+  untilTelegraph(hl, 'yellow');
+  var al = gl.boss.attack; gl.player.x = al.ox + al.dir.x * 60; gl.player.y = al.oy + al.dir.y * 60;
+  while (gl.boss.phase === 'telegraph' && gl.boss.t > 0.08) hl.step(1 / 60);
+  var cl = gl.counters;
+  hl.key('Shift');
+  check(G, '전조 끝 무렵(남은 0.08초 안)에도 회피 반격', gl.counters === cl + 1 && gl.boss.phase === 'telegraph', [gl.boss.t, gl.counters - cl]);
   // 범위 밖 회피는 반격 아님. 쿨타임 1초
   var h2 = fresh('', 21);
   var g2 = h2.getGame();
@@ -287,6 +317,46 @@ function fresh(search, seed) {
   check(G, '들어온 캐릭터 15초 그대로', near(g4.chars[g4.cur].tagCd, 15));
 })();
 
+// ---- 5-2. 손맛과 카메라 (2026-11-22): 꾹 누르면 1타 10 → 2타 10 → 3타 15, 쉬면 1타부터. 카메라는 가운데를 따라간다 ----
+(function () {
+  var G = '손맛';
+  var h = fresh('', 62), g = h.getGame();
+  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
+  g.player.x = 60; g.player.y = 0;
+  var b0 = g.boss.hp;
+  h.key('a');
+  check(G, '1타 10', b0 - g.boss.hp === 10, b0 - g.boss.hp);
+  check(G, '맞으면 화면 흔들림', g.shake > 0, g.shake);
+  h.run(0.4);
+  check(G, '2타 10 (0.35초 뒤)', b0 - g.boss.hp === 20, b0 - g.boss.hp);
+  h.run(0.35);
+  check(G, '3타 15 (0.7초 뒤)', b0 - g.boss.hp === 35, b0 - g.boss.hp);
+  check(G, '3타는 더 크게 흔들림', g.shakeAmp > 5, g.shakeAmp);
+  h.run(0.4);
+  check(G, '3타 뒤 0.5초 숨 고르기 (아직 안 나감)', b0 - g.boss.hp === 35, b0 - g.boss.hp);
+  h.run(0.15);
+  check(G, '숨 고른 뒤 다시 1타 10', b0 - g.boss.hp === 45, b0 - g.boss.hp);
+  h.keyUp('a'); h.run(0.4);
+  h.key('a');
+  check(G, '중간에 떼었다 바로 누르면 이어서 2타', b0 - g.boss.hp === 55 && g.combo === 2, [b0 - g.boss.hp, g.combo]);
+  h.keyUp('a'); h.run(1.5);
+  check(G, '쉬면 다시 1타부터', g.combo === 0, g.combo);
+  // 0.6초라는 값 자체: 다음 타를 칠 수 있게 된 뒤 0.55초 쉬면 이어지고, 0.65초 쉬면 1타부터
+  h.key('a'); h.keyUp('a'); h.run(h.consts.COMBO_CD[0] + 0.55);
+  check(G, '0.55초 쉬면 아직 이어짐 (다음은 2타)', g.combo === 1, g.combo);
+  h.key('a'); h.keyUp('a'); h.run(h.consts.COMBO_CD[1] + 0.65);
+  check(G, '0.65초 쉬면 1타부터', g.combo === 0 && h.consts.COMBO_RESET === 0.6, [g.combo, h.consts.COMBO_RESET]);
+  // Shift 를 누른 채 A 를 누르면 'A', Shift 를 먼저 떼고 A 를 떼면 'a' 로 들어와도 공격이 멈춘다 (2026-11-22 reviewer)
+  h.run(1.5);
+  h.key('A'); h.run(0.2); h.keyUp('a');
+  var bStop = g.boss.hp; h.run(1.0);
+  check(G, 'A 로 누르고 a 로 떼도 공격이 멈춤', g.boss.hp === bStop, bStop - g.boss.hp);
+  // 카메라: 캐릭터와 보스의 가운데를 따라간다
+  g.player.x = 150; g.player.y = 150; h.run(1.5);
+  check(G, '카메라가 가운데로 따라감', Math.abs(g.cam.x - (g.player.x + g.boss.x) / 2) < 3 && Math.abs(g.cam.y - (g.player.y + g.boss.y) / 2) < 3, [g.cam.x, g.cam.y]);
+  try { h.draw(); check(G, '카메라 그리기', true); } catch (e) { check(G, '카메라 그리기', false, e.message); }
+})();
+
 // ---- 6. 특수 스킬과 궁극 ----
 (function () {
   var G = '스킬';
@@ -294,7 +364,7 @@ function fresh(search, seed) {
   var g = h.getGame();
   g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
   g.player.x = 60; g.player.y = 0; // 보스 가장자리에서 30 (기본 공격 범위 안)
-  // A 를 누르고 있으면 0.35초마다 이어진다 (첫 판 뒤 더함)
+  // A 를 누르고 있으면 기본 공격이 이어진다 (첫 판 뒤 더함. 2026-11-22 부터 3타 10·10·15 라 1초에 35)
   var bhpHold = g.boss.hp;
   h.key('a'); h.run(1.0);
   var held = bhpHold - g.boss.hp;
@@ -432,11 +502,30 @@ function fresh(search, seed) {
   h.key('Enter');
   try { h.run(1); h.draw(); check(G, 'intro 그리기', true); } catch (e) { check(G, 'intro 그리기', false, e.message); }
   try { h.run(2.2); untilTelegraph(h); h.draw(); check(G, 'telegraph 그리기', true); } catch (e) { check(G, 'telegraph 그리기', false, e.message); }
-  try { h.run(0.55); h.draw(); check(G, 'active 그리기', true); } catch (e) { check(G, 'active 그리기', false, e.message); }
+  try { h.run(h.consts.TELEGRAPH + 0.05); h.draw(); check(G, 'active 그리기', h.getGame().boss.phase === 'active', h.getGame().boss.phase); } catch (e) { check(G, 'active 그리기', false, e.message); }
   var g = h.getGame();
   try { g.counters = 10; g.boss.phase = 'telegraph'; untilTelegraph(h, 'yellow'); var a = g.boss.attack; g.player.x = a.ox + a.dir.x * 60; g.player.y = a.oy + a.dir.y * 60; h.key('Shift'); h.draw(); check(G, 'groggyWait + zoom 그리기', h.getState() === 'groggyWait', h.getState()); } catch (e) { check(G, 'groggyWait 그리기', false, e.message); }
   try { h.run(0.5); h.key('f'); h.run(1); h.draw(); check(G, 'groggyAnim 그리기', true); } catch (e) { check(G, 'groggyAnim 그리기', false, e.message); }
   try { h.run(1.2); h.draw(); check(G, 'stunned 그리기', g.boss.phase === 'stunned'); } catch (e) { check(G, 'stunned 그리기', false, e.message); }
+  // 마름모와 바닥 범위는 전조 시작부터 함께 뜬다 (2026-11-22: 마지막 0.4초만 범위 → 마름모만 보고 반격하게 되어 다시 함께, 0.65초)
+  var hv = fresh('', 77);
+  untilTelegraph(hv);
+  var v0 = hv.telegraphView();
+  check(G, '전조 시작: 마름모와 바닥 범위가 함께 보임', !!(v0 && v0.marker && v0.range), v0);
+  check(G, '전조 시작에 바깥 마름모는 안쪽의 약 2.4배', near(hv.markerOuter(), hv.consts.MARK_S * 2.4, hv.consts.MARK_S * 0.15), hv.markerOuter());
+  try { hv.draw(); check(G, '전조 시작 그리기', true); } catch (e) { check(G, '전조 시작 그리기', false, e.message); }
+  hv.run(hv.consts.TELEGRAPH / 2);
+  var v1 = hv.telegraphView();
+  check(G, '전조 중간: 둘 다 보이고 테두리가 줄어드는 중', !!(v1 && v1.marker && v1.range && v1.k > 0.3 && v1.k < 0.7), v1);
+  try { hv.draw(); check(G, '전조 중간 그리기', true); } catch (e) { check(G, '전조 중간 그리기', false, e.message); }
+  // 마름모가 꽉 차는 때(바깥 마름모 = 안쪽 크기)와 공격이 나가는 때가 같다: 그리는 데 쓰는 markerOuter() 를 직접 본다
+  var gv = hv.getGame(), lastOuter = null, MS = hv.consts.MARK_S;
+  for (var q = 0; q < 120 && gv.boss.phase === 'telegraph'; q++) { lastOuter = hv.markerOuter(); hv.step(1 / 60); }
+  check(G, '바깥 마름모가 안쪽과 겹치는 틱 다음에 공격이 나감', lastOuter !== null && lastOuter - MS <= MS * 1.4 / 60 / hv.consts.TELEGRAPH + 1e-6 && gv.boss.phase === 'active', [lastOuter, MS, gv.boss.phase]);
+  try { hv.draw(); check(G, '공격 순간 마름모 그리기', true); } catch (e) { check(G, '공격 순간 마름모 그리기', false, e.message); }
+  hv.run(0.2);
+  check(G, '전조가 끝나면 마름모도 없음', hv.telegraphView() === null, hv.getGame().boss.phase);
+  check(G, '전조 0.65초', hv.consts.TELEGRAPH === 0.65 && hv.consts.RANGE_SHOW === hv.consts.TELEGRAPH);
   // 돌진은 0.25초에 걸쳐 미끄러진다 (첫 판 뒤 순간이동에서 바꿈)
   var hd = fresh('', 300), gd = hd.getGame();
   var okDash = false;
@@ -444,7 +533,8 @@ function fresh(search, seed) {
   check(G, '돌진 전조가 온다', okDash);
   if (okDash) {
     var ad = gd.boss.attack, sx = ad.ox, sy = ad.oy;
-    gd.player.x = 190; gd.player.y = 190;
+    // 캐릭터는 돌진 반대쪽에 세운다 (돌진 끝에 서 있으면 보스가 밀려나 끝 자리를 잴 수 없다. 2026-11-22 갇힘 고침)
+    gd.player.x = Math.max(-186, Math.min(186, ad.ox - ad.dir.x * 150)); gd.player.y = Math.max(-186, Math.min(186, ad.oy - ad.dir.y * 150));
     hd.run(hd.consts.TELEGRAPH + 0.05);
     var moved1 = Math.hypot(gd.boss.x - sx, gd.boss.y - sy);
     check(G, '전조 끝 직후 보스는 조금만 움직임 (순간이동 아님)', moved1 > 0 && moved1 < ad.p.len * 0.6, moved1);
