@@ -1110,62 +1110,180 @@
     }
   }
 
+  // ===== 돌처럼 그리기: 바닥 그림자, 같은 색 계열의 진한 테두리, 밝은 윗면, 어두운 아랫면 =====
+  var shadeCache = {};
+  // 색을 밝게(amt > 0) 또는 어둡게(amt < 0). hex 는 '#rrggbb', amt 는 -1~1
+  function shade(hex, amt) {
+    var key = hex + amt;
+    if (shadeCache[key]) return shadeCache[key];
+    var n = parseInt(hex.slice(1), 16), rgb = [n >> 16, (n >> 8) & 255, n & 255];
+    for (var i = 0; i < 3; i++) rgb[i] = Math.round(amt < 0 ? rgb[i] * (1 + amt) : rgb[i] + (255 - rgb[i]) * amt);
+    return (shadeCache[key] = 'rgb(' + rgb.join(',') + ')');
+  }
+
+  // 바닥에 드리운 옅은 그림자 (돌과 같은 진하기)
+  function dropShadow(c, cx, cy, rx, ry) {
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.beginPath(); c.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); c.fill();
+  }
+
+  // 돌처럼 칠한 상자. 테두리는 상자 안쪽에 그려서 바깥 크기(판정에 쓰는 끝)가 그대로다
+  function shadedBox(c, x, y, w, h, color, band, lw) {
+    lw = lw || 2;
+    c.fillStyle = color;
+    c.fillRect(x, y, w, h);
+    c.fillStyle = shade(color, 0.25); // 밝은 윗면
+    c.fillRect(x, y, w, band);
+    c.fillStyle = shade(color, -0.22); // 어두운 아랫면
+    c.fillRect(x, y + h - band, w, band);
+    c.strokeStyle = shade(color, -0.5);
+    c.lineWidth = lw;
+    c.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw);
+  }
+
+  // 줄과 칸마다 늘 같은 값 (0~1). 풀포기, 자갈처럼 매 장면 같은 자리에 그릴 것에 쓴다
+  function cellHash(a, b) {
+    var h = (a * 374761393 + b * 668265263) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
   function drawRowBase(r) {
-    var row = getRow(r);
+    var row = getRow(r), above = getRow(r + 1);
     var y = rowToY(r);
-    var x;
+    var x, c, h;
     if (row.type === 'grass') {
-      if (r < START_ROW) ctx.fillStyle = (r % 2 === 0) ? '#8d8d6e' : '#7f7f63'; // 시작 줄 뒤쪽
-      else ctx.fillStyle = (r % 2 === 0) ? '#4caf50' : '#43a047';
+      var g;
+      if (r < START_ROW) g = (r % 2 === 0) ? '#8d8d6e' : '#7f7f63'; // 시작 줄 뒤쪽
+      else g = (r % 2 === 0) ? '#4caf50' : '#43a047';
+      ctx.fillStyle = g;
       ctx.fillRect(0, y, canvas.width, CELL);
+      ctx.fillStyle = shade(g, -0.2); // 풀포기: 칸마다 늘 같은 자리에
+      for (c = 0; c < COLS; c++) {
+        h = cellHash(r, c);
+        if (h > 0.45) continue;
+        var tx = c * CELL + 8 + Math.floor(h * 600) % 28, ty = y + 14 + Math.floor(h * 970) % 22;
+        ctx.fillRect(tx, ty, 2, 5);
+        ctx.fillRect(tx + 3, ty - 2, 2, 7);
+        ctx.fillRect(tx + 6, ty + 1, 2, 4);
+      }
+      if (above.type !== 'grass') { // 다른 땅과 닿는 위쪽 끝은 둑처럼 밝게
+        ctx.fillStyle = 'rgba(255,255,255,0.14)';
+        ctx.fillRect(0, y, canvas.width, 3);
+      }
     } else if (row.type === 'road') {
       ctx.fillStyle = '#50535c';
       ctx.fillRect(0, y, canvas.width, CELL);
-      if (getRow(r + 1).type === 'road') { // 바로 위 줄도 찻길이면 차선 점선
+      ctx.fillStyle = 'rgba(0,0,0,0.14)'; // 아스팔트 알갱이
+      for (c = 0; c < COLS * 3; c++) {
+        h = cellHash(r, c + 50);
+        ctx.fillRect(c * 16 + Math.floor(h * 14), y + 5 + Math.floor(h * 1130) % 38, 2, 2);
+      }
+      if (above.type === 'road') { // 바로 위 줄도 찻길이면 차선 점선
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
         for (x = 6; x < canvas.width; x += 36) ctx.fillRect(x, y - 1, 18, 3);
+      } else { // 찻길 위쪽 끝: 연석
+        ctx.fillStyle = '#8a8d94';
+        ctx.fillRect(0, y, canvas.width, 3);
+      }
+      if (getRow(r - 1).type !== 'road') { // 찻길 아래쪽 끝: 연석 그늘
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(0, y + CELL - 3, canvas.width, 3);
       }
     } else if (row.type === 'rail') {
       ctx.fillStyle = '#7a6a5c';
       ctx.fillRect(0, y, canvas.width, CELL);
-      ctx.fillStyle = '#5a4636'; // 침목
-      for (x = 4; x < canvas.width; x += 16) ctx.fillRect(x, y + 8, 7, CELL - 16);
-      ctx.fillStyle = '#c9c9c9'; // 레일 두 줄
+      ctx.fillStyle = 'rgba(0,0,0,0.16)'; // 자갈
+      for (c = 0; c < COLS * 4; c++) {
+        h = cellHash(r, c + 90);
+        ctx.fillRect(c * 12 + Math.floor(h * 10), y + 3 + Math.floor(h * 1310) % 42, 3, 2);
+      }
+      for (x = 4; x < canvas.width; x += 16) { // 침목: 밝은 윗면, 어두운 아랫면
+        ctx.fillStyle = '#5a4636';
+        ctx.fillRect(x, y + 8, 7, CELL - 16);
+        ctx.fillStyle = '#705a46';
+        ctx.fillRect(x, y + 8, 7, 3);
+        ctx.fillStyle = '#3e3026';
+        ctx.fillRect(x, y + CELL - 11, 7, 3);
+      }
+      ctx.fillStyle = '#8c8c8c'; // 레일 두 줄: 어두운 옆면 위에 밝은 윗면
       ctx.fillRect(0, y + 13, canvas.width, 4);
       ctx.fillRect(0, y + CELL - 17, canvas.width, 4);
+      ctx.fillStyle = '#e6e6e6';
+      ctx.fillRect(0, y + 13, canvas.width, 2);
+      ctx.fillRect(0, y + CELL - 17, canvas.width, 2);
     } else {
       ctx.fillStyle = row.still ? '#2f7fc4' : '#3b8fd6'; // 고인 물은 조금 더 짙게
       ctx.fillRect(0, y, canvas.width, CELL);
       ctx.fillStyle = 'rgba(255,255,255,0.18)'; // 물결
       for (x = ((r * 37) % 60 + 60) % 60; x < canvas.width; x += 60) ctx.fillRect(x, y + 14 + ((r % 3) + 3) % 3 * 6, 20, 2);
+      if (above.type !== 'river') { // 둑 바로 아래 물은 그늘
+        ctx.fillStyle = 'rgba(0,0,0,0.18)';
+        ctx.fillRect(0, y, canvas.width, 5);
+      }
     }
   }
 
+  // 차: 그림 바깥 끝은 칸 끝에서 3픽셀 안쪽 그대로 (차 앞머리 판정이 그림 끝이다)
   function drawCar(px, y, len, dir, color) {
     var w = len * CELL - 6, h = 30, left = px + 3, top = y + 9;
+    dropShadow(ctx, left + w / 2, top + h + 3, w / 2 - 2, 4);
     ctx.fillStyle = '#222'; // 바퀴
     ctx.fillRect(left + 5, top - 3, 10, 4);
     ctx.fillRect(left + w - 15, top - 3, 10, 4);
     ctx.fillRect(left + 5, top + h - 1, 10, 4);
     ctx.fillRect(left + w - 15, top + h - 1, 10, 4);
-    ctx.fillStyle = color;
-    ctx.fillRect(left, top, w, h);
+    shadedBox(ctx, left, top, w, h, color, 5);
     if (len > 1) { // 트럭 짐칸
+      var bx = dir > 0 ? left + 4 : left + 22, bw = w - 26;
       ctx.fillStyle = 'rgba(255,255,255,0.25)';
-      ctx.fillRect(dir > 0 ? left + 4 : left + 22, top + 4, w - 26, h - 8);
+      ctx.fillRect(bx, top + 4, bw, h - 8);
+      ctx.strokeStyle = shade(color, -0.4);
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx + 0.75, top + 4.75, bw - 1.5, h - 9.5);
+    } else { // 지붕
+      ctx.fillStyle = shade(color, 0.12);
+      ctx.fillRect(dir > 0 ? left + 9 : left + 15, top + 7, w - 24, h - 14);
     }
-    ctx.fillStyle = 'rgba(210,235,255,0.9)'; // 앞 유리 (가는 쪽)
-    ctx.fillRect(dir > 0 ? left + w - 13 : left + 3, top + 5, 10, h - 10);
+    var gx = dir > 0 ? left + w - 13 : left + 3; // 앞 유리 (가는 쪽)
+    ctx.fillStyle = 'rgba(210,235,255,0.95)';
+    ctx.fillRect(gx, top + 5, 10, h - 10);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; // 유리에 비친 빛
+    ctx.fillRect(gx + 2, top + 7, 2, 6);
+    ctx.strokeStyle = shade(color, -0.5);
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(gx + 0.75, top + 5.75, 8.5, h - 11.5);
+    ctx.fillStyle = '#fff59d'; // 전조등
+    ctx.fillRect(dir > 0 ? left + w - 4 : left + 2, top + 3, 2, 5);
+    ctx.fillRect(dir > 0 ? left + w - 4 : left + 2, top + h - 8, 2, 5);
+    ctx.fillStyle = '#ff5252'; // 미등
+    ctx.fillRect(dir > 0 ? left + 2 : left + w - 4, top + 3, 2, 4);
+    ctx.fillRect(dir > 0 ? left + 2 : left + w - 4, top + h - 7, 2, 4);
   }
 
   function drawTrain(px, y, dir) {
     for (var k = 0; k < TRAIN_LEN; k += 3) { // 3칸짜리 칸이 넷
-      var left = px + k * CELL + 2, w = 3 * CELL - 4;
-      ctx.fillStyle = '#b71c1c';
-      ctx.fillRect(left, y + 5, w, CELL - 10);
-      ctx.fillStyle = '#ffcdd2';
-      for (var wx = left + 10; wx < left + w - 14; wx += 26) ctx.fillRect(wx, y + 13, 14, CELL - 26);
+      var left = px + k * CELL + 2, w = 3 * CELL - 4, top = y + 5, h = CELL - 10;
+      dropShadow(ctx, left + w / 2, top + h + 2, w / 2 - 4, 3.5);
+      if (k > 0) { // 칸 사이 잇개
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(left - 4, top + h / 2 - 3, 6, 6);
+      }
+      shadedBox(ctx, left, top, w, h, '#b71c1c', 6);
+      for (var wx = left + 10; wx < left + w - 14; wx += 26) { // 창: 밝은 윗면과 진한 틀
+        ctx.fillStyle = '#ffcdd2';
+        ctx.fillRect(wx, y + 13, 14, CELL - 26);
+        ctx.fillStyle = '#fff0f2';
+        ctx.fillRect(wx, y + 13, 14, 4);
+        ctx.strokeStyle = '#6d0d0d';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(wx + 0.75, y + 13.75, 12.5, CELL - 27.5);
+      }
     }
+    var fx = dir > 0 ? px + TRAIN_LEN * CELL - 7 : px + 5; // 맨 앞 칸 전조등
+    ctx.fillStyle = '#fff59d';
+    ctx.fillRect(fx, y + 10, 2, 6);
+    ctx.fillRect(fx, y + CELL - 16, 2, 6);
   }
 
   // 예고 사인: 철길 왼쪽 끝 신호등. 기다릴 때는 꺼져 있고, 예고와 지나갈 때는 깜빡인다
@@ -1175,11 +1293,16 @@
       ctx.fillStyle = on ? 'rgba(229,57,53,0.30)' : 'rgba(229,57,53,0.12)';
       ctx.fillRect(0, y, canvas.width, CELL);
     }
-    ctx.fillStyle = '#333';
-    ctx.fillRect(4, y + 4, 16, CELL - 8);
-    ctx.fillStyle = on ? '#ff1744' : '#5d1a1a';
-    ctx.beginPath(); ctx.arc(12, y + 16, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(12, y + 32, 6, 0, Math.PI * 2); ctx.fill();
+    shadedBox(ctx, 4, y + 4, 16, CELL - 8, '#3a3a3a', 4);
+    for (var i = 0; i < 2; i++) {
+      var ly = y + 16 + i * 16;
+      ctx.fillStyle = '#111111'; // 등 테
+      ctx.beginPath(); ctx.arc(12, ly, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = on ? '#ff1744' : '#5d1a1a';
+      ctx.beginPath(); ctx.arc(12, ly, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = on ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.15)'; // 유리에 비친 빛
+      ctx.fillRect(9, ly - 4, 2, 2);
+    }
   }
 
   // 줄 위의 것들: 풀밭의 나무·돌·빈 공간, 찻길의 차, 철길의 신호등과 열차
@@ -1203,11 +1326,25 @@
       if (row.still) {
         for (i = 0; i < COLS; i++) {
           var cx = i * CELL + CELL / 2, cy = y + CELL / 2;
-          if (row.pads[i] === PAD) { // 연잎 모양 발판
+          if (row.pads[i] === PAD) { // 연잎 모양 발판: 물에 비친 그림자, 진한 테두리, 밝은 윗면, 잎맥
+            ctx.fillStyle = 'rgba(0,30,60,0.30)';
+            ctx.beginPath(); ctx.ellipse(cx + 1, cy + 5, 17, 7, 0, 0, Math.PI * 2); ctx.fill();
             ctx.fillStyle = '#7cb342';
-            ctx.beginPath(); ctx.arc(cx, cy, 17, 0.35, Math.PI * 2 - 0.35); ctx.lineTo(cx, cy); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx, cy, 17, 0.35, Math.PI * 2 - 0.35); ctx.lineTo(cx, cy); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = '#4e7a23';
+            ctx.lineWidth = 2;
+            ctx.stroke();
             ctx.fillStyle = '#9ccc65';
-            ctx.beginPath(); ctx.arc(cx - 4, cy - 3, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(cx - 4, cy - 4, 7, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = 'rgba(78,122,35,0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            for (var vein = 0; vein < 4; vein++) {
+              var va = 1.5 + vein * 1.1;
+              ctx.moveTo(cx, cy);
+              ctx.lineTo(cx + Math.cos(va) * 12, cy + Math.sin(va) * 12);
+            }
+            ctx.stroke();
           } else if (row.pads[i] === SUNK) { // 가라앉은 자리: 물결만 남는다
             ctx.strokeStyle = 'rgba(255,255,255,0.35)';
             ctx.lineWidth = 2;
@@ -1215,14 +1352,44 @@
           }
         }
       } else {
-        for (i = 0; i < row.cars.length; i++) { // 통나무
+        for (i = 0; i < row.cars.length; i++) { // 통나무: 양 끝을 둥글게 깎은 모양. 테두리 바깥 끝은 칸 끝에서 2픽셀 안쪽 그대로 (LOG_INSET)
           var lx = carX(row, row.cars[i]) * CELL, lw = row.cars[i].len * CELL;
+          var lt = y + 8, lh = CELL - 16, l0 = lx + 8, l1 = lx + lw - 8; // l0, l1 은 양 끝 타원의 가운데
+          ctx.fillStyle = 'rgba(0,30,60,0.30)'; // 물에 비친 그림자
+          ctx.fillRect(lx + 6, y + CELL - 8, lw - 12, 4);
+          ctx.save();
+          ctx.beginPath(); // 둥근 끝 몸통의 바깥선 (테두리 두께 2 의 절반만큼 안쪽)
+          ctx.moveTo(l0, lt + 1);
+          ctx.lineTo(l1, lt + 1);
+          ctx.ellipse(l1, lt + lh / 2, 5, lh / 2 - 1, 0, -Math.PI / 2, Math.PI / 2);
+          ctx.lineTo(l0, lt + lh - 1);
+          ctx.ellipse(l0, lt + lh / 2, 5, lh / 2 - 1, 0, Math.PI / 2, Math.PI * 3 / 2);
+          ctx.closePath();
           ctx.fillStyle = '#8d6e63';
-          ctx.fillRect(lx + 2, y + 8, lw - 4, CELL - 16);
-          ctx.fillStyle = '#6d4c41';
-          ctx.fillRect(lx + 2, y + 8, lw - 4, 4);
-          ctx.fillStyle = '#a1887f';
-          ctx.beginPath(); ctx.arc(lx + lw - 10, y + CELL / 2, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fill();
+          ctx.clip(); // 밝은 윗면과 어두운 아랫면은 둥근 몸통 안에만
+          ctx.fillStyle = shade('#8d6e63', 0.25);
+          ctx.fillRect(lx, lt, lw, 6);
+          ctx.fillStyle = shade('#8d6e63', -0.22);
+          ctx.fillRect(lx, lt + lh - 6, lw, 6);
+          ctx.fillStyle = '#5f4339'; // 나뭇결
+          for (var gx = l0 + 12; gx < l1 - 18; gx += 22) {
+            ctx.fillRect(gx, y + 19, 12, 2);
+            ctx.fillRect(gx + 8, y + 27, 10, 2);
+          }
+          ctx.restore(); // 잘라 그리기를 풀어도 바깥선 경로는 남아 있다
+          ctx.strokeStyle = shade('#8d6e63', -0.5);
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          for (var end = 0; end < 2; end++) { // 양 끝 자른 면과 나이테
+            var ex = end === 0 ? l0 : l1;
+            ctx.fillStyle = '#d7b899';
+            ctx.beginPath(); ctx.ellipse(ex, y + CELL / 2, 4, lh / 2 - 3, 0, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#6d4c41';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.beginPath(); ctx.ellipse(ex, y + CELL / 2, 2, 6, 0, 0, Math.PI * 2); ctx.stroke();
+          }
         }
       }
       return;
@@ -1230,13 +1397,18 @@
     if (row.type !== 'grass') return;
     for (var c = 0; c < COLS; c++) {
       var x = c * CELL, v = row.cells[c];
-      if (v === TREE) {
-        ctx.fillStyle = '#6d4c41';
+      if (v === TREE) { // 나무: 돌처럼 각진 잎 덩어리 (그림자, 진한 테두리, 밝은 윗면, 어두운 아랫면)
+        dropShadow(ctx, x + 24, y + 41, 14, 4);
+        ctx.fillStyle = '#6d4c41'; // 줄기: 오른쪽은 그늘
         ctx.fillRect(x + 20, y + 28, 8, 14);
-        ctx.fillStyle = '#2e7d32';
-        ctx.beginPath(); ctx.arc(x + 24, y + 22, 15, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#388e3c';
-        ctx.beginPath(); ctx.arc(x + 20, y + 18, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#4e342e';
+        ctx.fillRect(x + 25, y + 28, 3, 14);
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 20.75, y + 28.75, 6.5, 12.5);
+        fillPoly(x, y, [[9, 24], [11, 13], [19, 7], [30, 7], [38, 13], [40, 24], [35, 33], [24, 36], [13, 33]], '#2e7d32', '#1b4d20');
+        fillPoly(x, y, [[11, 13], [19, 7], [30, 7], [38, 13], [31, 17], [17, 17]], '#43a047');
+        fillPoly(x, y, [[9, 24], [15, 29], [33, 29], [40, 24], [35, 33], [24, 36], [13, 33]], '#256b29');
       } else if (v === ROCK) { // 각진 돌: 그림자, 몸통과 진한 테두리, 밝은 윗면, 어두운 아랫면
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath(); ctx.ellipse(x + 24, y + 39, 18, 5, 0, 0, Math.PI * 2); ctx.fill();
@@ -1247,11 +1419,15 @@
         var n = 0;
         while (c + n < COLS && row.cells[c + n] === SIGN) n++;
         var w = n * CELL;
-        ctx.fillStyle = '#5d4037';
-        ctx.fillRect(x + 16, y + 28, 6, 18);
-        ctx.fillRect(x + w - 22, y + 28, 6, 18);
+        dropShadow(ctx, x + w / 2, y + 45, w / 2 - 12, 3.5);
+        shadedBox(ctx, x + 16, y + 28, 6, 18, '#5d4037', 3, 1.5);
+        shadedBox(ctx, x + w - 22, y + 28, 6, 18, '#5d4037', 3, 1.5);
         ctx.fillStyle = '#bcaaa4';
         ctx.fillRect(x + 4, y + 2, w - 8, 30);
+        ctx.fillStyle = '#d7ccc8'; // 판자 밝은 윗면, 어두운 아랫면
+        ctx.fillRect(x + 4, y + 2, w - 8, 6);
+        ctx.fillStyle = '#9c8a84';
+        ctx.fillRect(x + 4, y + 26, w - 8, 6);
         ctx.strokeStyle = '#5d4037';
         ctx.lineWidth = 3;
         ctx.strokeRect(x + 5.5, y + 3.5, w - 11, 27);
@@ -1263,6 +1439,10 @@
       } else if (v === HOLE) {
         ctx.fillStyle = '#0d1b2a';
         ctx.fillRect(x + 3, y + 3, CELL - 6, CELL - 6);
+        ctx.fillStyle = '#1c2e40'; // 안쪽 벽: 깊어 보이게
+        ctx.fillRect(x + 3, y + 3, CELL - 6, 9);
+        ctx.fillStyle = '#060d15';
+        ctx.fillRect(x + 12, y + 20, CELL - 24, CELL - 28);
         ctx.strokeStyle = '#33424f';
         ctx.lineWidth = 3;
         ctx.strokeRect(x + 4.5, y + 4.5, CELL - 9, CELL - 9);
@@ -1295,31 +1475,60 @@
       c.arc(x + px * u, y + py * u, r * u, 0, Math.PI * 2);
       c.fill();
     }
+    // 몸통은 돌처럼: 밝은 윗면, 어두운 아랫면, 진한 테두리 (테두리는 안쪽이라 몸통 폭 8~40 판정 그대로)
+    function box(px, py, w, h, color, band) {
+      if (opts.silhouette) { rect(px, py, w, h, '#000'); return; }
+      shadedBox(c, x + px * u, y + py * u, w * u, h * u, color, band * u, 2 * u);
+    }
+    function ball(px, py, r, color) { // 테두리 있는 원
+      circle(px, py, r, color);
+      if (opts.silhouette) return;
+      c.strokeStyle = shade(color, -0.5);
+      c.lineWidth = 1.5 * u;
+      c.beginPath();
+      c.arc(x + px * u, y + py * u, (r - 0.75) * u, 0, Math.PI * 2);
+      c.stroke();
+    }
     if (id === 'frog') {
-      rect(9, 13, 30, 27, '#43a047');  // 몸
-      rect(13, 27, 22, 11, '#a5d6a7'); // 배
-      circle(15, 13, 7, '#43a047');    // 눈두덩
-      circle(33, 13, 7, '#43a047');
+      box(9, 13, 30, 27, '#43a047', 4); // 몸
+      rect(13, 27, 22, 11, '#a5d6a7');  // 배
+      rect(13, 35, 22, 3, '#81c784');
+      ball(15, 13, 7, '#43a047');       // 눈두덩
+      ball(33, 13, 7, '#43a047');
       circle(15, 13, 4, '#ffffff');
       circle(33, 13, 4, '#ffffff');
       circle(15, 13, 2, '#111111');
       circle(33, 13, 2, '#111111');
+      rect(14, 11, 1, 1, '#ffffff');    // 눈에 비친 빛
+      rect(32, 11, 1, 1, '#ffffff');
     } else if (id === 'bull') {
-      rect(5, 8, 9, 5, '#eeeeee');     // 뿔
+      rect(5, 8, 9, 5, '#eeeeee');      // 뿔: 아랫면과 끝은 어둡게
       rect(34, 8, 9, 5, '#eeeeee');
       rect(5, 3, 4, 7, '#eeeeee');
       rect(39, 3, 4, 7, '#eeeeee');
-      rect(9, 10, 30, 30, '#6d4c41');  // 몸
-      rect(13, 28, 22, 10, '#f8bbd0'); // 코
+      rect(5, 11, 9, 2, '#bdbdbd');
+      rect(34, 11, 9, 2, '#bdbdbd');
+      rect(5, 3, 4, 2, '#9e9e9e');
+      rect(39, 3, 4, 2, '#9e9e9e');
+      box(9, 10, 30, 30, '#6d4c41', 5); // 몸
+      rect(13, 28, 22, 10, '#f8bbd0');  // 코
+      rect(13, 35, 22, 3, '#f48fb1');
       rect(17, 31, 3, 4, '#5d4037');
       rect(28, 31, 3, 4, '#5d4037');
-      rect(15, 17, 5, 5, '#111111');   // 눈
+      rect(15, 17, 5, 5, '#111111');    // 눈
       rect(28, 17, 5, 5, '#111111');
+      rect(16, 18, 2, 2, '#ffffff');
+      rect(29, 18, 2, 2, '#ffffff');
     } else {
-      rect(8, 8, 32, 32, '#ffd54f');   // 몸
-      rect(16, 16, 5, 5, '#222222');   // 눈
+      rect(20, 4, 3, 5, '#ffb300');     // 머리 깃
+      rect(24, 5, 3, 4, '#ffb300');
+      box(8, 8, 32, 32, '#ffd54f', 5);  // 몸
+      rect(16, 16, 5, 5, '#222222');    // 눈
       rect(27, 16, 5, 5, '#222222');
-      rect(20, 26, 8, 4, '#ff8f00');   // 부리
+      rect(17, 17, 2, 2, '#ffffff');
+      rect(28, 17, 2, 2, '#ffffff');
+      rect(20, 26, 8, 4, '#ff8f00');    // 부리
+      rect(20, 28, 8, 2, '#e65100');
     }
   }
 
@@ -1331,12 +1540,18 @@
     ctx.scale(d, 1); // 머리가 나는 쪽을 본다
     ctx.fillStyle = '#3e2723'; // 꼬리
     ctx.beginPath(); ctx.moveTo(-16, 0); ctx.lineTo(-30, -6); ctx.lineTo(-30, 6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#2b1b17'; // 몸, 날개, 머리에 진한 테두리
+    ctx.lineWidth = 1.5;
     ctx.fillStyle = '#5d4037'; // 몸
-    ctx.beginPath(); ctx.ellipse(0, 0, 20, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, 20, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#795548'; // 등의 밝은 면
+    ctx.beginPath(); ctx.ellipse(-2, -4, 13, 3, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#4e342e'; // 날개
-    ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(-14, wingY - 12); ctx.lineTo(8, -3); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -2); ctx.lineTo(-14, wingY - 12); ctx.lineTo(8, -3); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#fafafa'; // 머리
     ctx.beginPath(); ctx.arc(19, -5, 7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#9e9e9e';
+    ctx.stroke();
     ctx.fillStyle = '#ffb300'; // 부리
     ctx.beginPath(); ctx.moveTo(25, -8); ctx.lineTo(33, -4); ctx.lineTo(25, -1); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#111111'; // 눈
@@ -1439,6 +1654,7 @@
     var y = rowToY(s.row);
     if (mode === 'over' && s.deathKind) { drawDeath(x, y); return; }
     if (s.invuln > 0 && Math.floor(s.invuln * 10) % 2 === 0) return; // 황소가 막아 준 뒤 깜빡임
+    dropShadow(ctx, x + CELL / 2, y + CELL - 6, 15, 4); // 발밑 그림자 (돌과 같은 진하기)
     if (s.charge !== null) { // 개구리가 앞 키를 누르고 있는 동안: 누르자마자 웅크린다 (움직이는 것은 뗄 때)
       ctx.save();
       ctx.translate(x + CELL / 2, y + CELL - 8); // 발밑(몸통 그림 아래 끝)을 기준으로 눌린다
