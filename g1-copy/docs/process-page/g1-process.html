@@ -1,0 +1,338 @@
+<title>길 건너기 게임 제작 과정</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: the page is read like the game is played, one lane per stage from 0 to G, each stage sitting in a 48px cell */
+:root {
+  --bg: #eef2ec;
+  --surface: #fbfcfa;
+  --ink: #1b2420;
+  --muted: #56635c;
+  --line: #d3dbd2;
+  --grass: #5f9e43;
+  --road: #3b4147;
+  --water: #2f7dbf;
+  --signal: #cf3b25;
+  --btn-bg: #437a2c;
+  --btn-fg: #ffffff;
+  --btn-shadow: #2c561c;
+  --cell: 48px;
+  --font-display: "Do Hyeon", "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111613; --surface: #18201b; --ink: #e4ebe6; --muted: #9aa7a0; --line: #2b352f;
+    --grass: #79bd59; --road: #8c949b; --water: #5aa6e6; --signal: #f0654e; --btn-bg: #79bd59; --btn-fg: #0d160f; --btn-shadow: #4a8233; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111613; --surface: #18201b; --ink: #e4ebe6; --muted: #9aa7a0; --line: #2b352f;
+  --grass: #79bd59; --road: #8c949b; --water: #5aa6e6; --signal: #f0654e; --btn-bg: #79bd59; --btn-fg: #0d160f; --btn-shadow: #4a8233; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 56px; }
+a { color: var(--water); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--water); outline-offset: 2px; }
+h1, h2 { font-family: var(--font-display); font-weight: 400; text-wrap: balance; margin: 0; line-height: 1.25; }
+h1 { font-size: clamp(40px, 8vw, 64px); }
+h2 { font-size: 30px; }
+p { margin: 0; }
+.eyebrow { font-size: 13px; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* hero: a strip of lanes with the character cell, then the name */
+.lanes { display: grid; grid-template-rows: repeat(4, 14px); margin-top: 24px; border-radius: 4px; overflow: hidden; position: relative; }
+.lanes span:nth-child(1) { background: var(--grass); }
+.lanes span:nth-child(2) { background: var(--road); background-image: repeating-linear-gradient(90deg, transparent 0 20px, color-mix(in srgb, var(--bg) 70%, transparent) 20px 34px); background-size: 100% 2px; background-repeat: repeat-x; background-position: 0 6px; }
+.lanes span:nth-child(3) { background: var(--water); }
+.lanes span:nth-child(4) { background: var(--grass); }
+.lanes::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--signal); }
+.hero { display: grid; gap: 20px; padding-top: 8px; }
+.hero .sub { color: var(--muted); font-size: 17px; }
+.go { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 20px; border-radius: 6px; font-weight: 600; font-size: 15px; text-decoration: none; color: var(--ink); background: var(--surface); border: 1px solid var(--line); box-shadow: 0 3px 0 var(--line); transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease; }
+.btn svg { width: 16px; height: 16px; flex: none; color: var(--grass); }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 5px 0 var(--line); border-color: var(--grass); }
+.btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--line); }
+.btn:focus-visible { outline: 2px solid var(--water); outline-offset: 3px; }
+.btn.primary { background: var(--btn-bg); color: var(--btn-fg); border-color: var(--btn-bg); box-shadow: 0 3px 0 var(--btn-shadow); }
+.btn.primary svg { color: var(--btn-fg); }
+.btn.primary:hover { box-shadow: 0 5px 0 var(--btn-shadow); }
+.btn.primary:active { box-shadow: 0 1px 0 var(--btn-shadow); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover, .btn:active { transform: none; } }
+.shot { margin: 8px 0 0; display: grid; justify-items: center; gap: 10px; }
+.shot img { display: block; width: 100%; max-width: 324px; height: auto; border-radius: 6px; border: 1px solid var(--line); }
+.shot figcaption { font-size: 13px; color: var(--muted); text-align: center; }
+
+.why { border-left: 4px solid var(--grass); padding: 4px 0 4px 20px; font-size: 19px; line-height: 1.75; max-width: 62ch; }
+.label-mine { display: inline-block; font-size: 12px; letter-spacing: .06em; font-weight: 600; color: var(--grass); margin-bottom: 6px; }
+
+section { display: grid; gap: 20px; }
+section > p.lead { color: var(--muted); max-width: 62ch; }
+
+/* stages as lanes */
+.stages { list-style: none; margin: 0; padding: 0; display: grid; }
+.stage { display: grid; grid-template-columns: var(--cell) minmax(0, 1fr); gap: 18px; padding: 18px 0; border-top: 1px solid var(--line); }
+.stage:last-child { border-bottom: 1px solid var(--line); }
+.cell { width: var(--cell); height: var(--cell); border-radius: 4px; display: grid; place-items: center; font-family: var(--font-display); font-size: 26px; color: #fff; background: var(--grass); }
+.stage.road .cell { background: var(--road); color: var(--bg); }
+.stage.water .cell { background: var(--water); }
+.stage-body { display: grid; gap: 8px; min-width: 0; }
+.stage-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.stage-head h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.stage-head .mono { font-size: 13px; color: var(--muted); }
+.stage-body p { max-width: 64ch; }
+blockquote { margin: 0; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-size: 15px; max-width: 64ch; }
+blockquote .label-mine { margin-bottom: 2px; display: block; }
+
+/* split */
+.split { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.split > div { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.split h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.split ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+/* finder bar */
+.finder { display: grid; gap: 10px; }
+.bar { display: flex; height: 28px; border-radius: 4px; overflow: hidden; }
+.bar span { display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 14px; color: var(--muted); }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 6px; }
+.c-user { background: var(--grass); }
+.c-rev { background: var(--water); }
+.c-ai { background: var(--road); }
+.c-self { background: var(--signal); }
+
+.mistakes { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.mistakes li { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: start; }
+.mistakes .tag { font-family: var(--font-mono); font-size: 13px; color: var(--muted); padding-top: 3px; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; line-height: 1.55; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.verdict { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid currentColor; }
+.v-ok { color: var(--grass); }
+.v-no { color: var(--signal); }
+
+.next { display: grid; gap: 12px; max-width: 64ch; }
+.next p { padding-left: 16px; border-left: 3px solid var(--line); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 20px; }
+@media (max-width: 480px) {
+  .stage { grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+  .cell { width: 40px; height: 40px; font-size: 22px; }
+  .why { font-size: 17px; }
+  .go { flex-direction: column; align-items: stretch; }
+  .btn { justify-content: center; }
+}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <div class="lanes" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+  <p class="eyebrow">게임 1 · 완전 카피 · 원작 길건너친구들 (Crossy Road)</p>
+  <h1>길 건너기 게임 제작 과정</h1>
+  <p class="sub">이미 있는 작은 게임 하나를 똑같이 만들면서 0 준비부터 G 정리까지 AI와 나눠 일한 기록이다. 그림은 모두 도형으로 그렸고, 원작의 그림과 소리는 쓰지 않았다.</p>
+  <figure class="shot">
+    <img src="g1-start-2.png" width="432" height="672" alt="길 건너기 시작 화면. 제목 아래에 캐릭터 카드 셋(기본, 잠긴 개구리와 황소)과 노란 시작 버튼이 있고, 뒤로 그림자와 테두리가 있는 차와 나무, 찻길과 풀밭이 보인다">
+    <figcaption>게임 시작 화면</figcaption>
+  </figure>
+  <nav class="go" aria-label="바로가기">
+    <a class="btn primary" href="https://mongssill.github.io/ai-seed-kit-games/g1-copy/" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>게임 해 보기</a>
+    <a class="btn" href="https://mongssill.github.io/ai-seed-kit-games/g1-copy/?test" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 7V5a3 3 0 0 1 5.8-1.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/></svg>캐릭터 모두 풀고 해 보기</a>
+    <a class="btn" href="https://github.com/MongSsill/ai-seed-kit-games" target="_blank" rel="noopener">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h4l1.5 1.5h5.5v8h-11z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>저장소 (문서·로그·장부)</a>
+  </nav>
+</header>
+
+<section>
+  <p class="eyebrow">왜 만들었나</p>
+  <div class="why">
+    <span class="label-mine">내 말</span>
+    <p>창작 게임을 만들기 전, 기존에 흥행한 게임을 분석해보고 이를 모방하는 것으로 게임 만들기의 기본을 익히고 좋은 게임의 조건을 분석하여 발전된 게임을 만드는 것을 목표로 한다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>단계마다 한 일</h2>
+  <p class="lead">단계마다 끝나는 기준을 정해 두고, 기준을 하나씩 확인한 뒤에 다음 단계로 넘어갔다. 인용 칸은 그날 로그에 내가 쓴 문장이다 (README 와 같게 말투만 맞췄다).</p>
+  <ol class="stages">
+    <li class="stage">
+      <div class="cell" aria-hidden="true">0</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>준비</h3></div>
+        <p>GitHub 저장소를 연결하고, 작업을 시작하고 끝낼 때 쓰는 명령(/start, /end)으로 하루를 이어받는 흐름을 확인했다. AI 작업 규칙 한 줄을 내 말로 고쳤다: "시작 전에 '변경될 방향 및 결과'를 간단히 서술하고 확인받는다."</p>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="cell" aria-hidden="true">A</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>출발점</h3></div>
+        <p>원작은 내가 해 본 게임에서 골랐다 (원작 후보는 AI가 먼저 내지 않았고, 고른 뒤 원작 조작 검색과 의견을 맡겼다). 원작을 해 보고 규칙, 조작, 수치, 반응, 어려워지는 방식을 본 것과 짐작한 것으로 나눠 적었다. 원작과 다르게 할 것으로 개구리(15번 연속 전진하면 풀림, 두 칸 점프), 황소(차에 30번 치이면 풀림, 한 판에 한 번 막아 줌), 한 번 밟으면 사라지는 발판을 넣었다.</p>
+        <blockquote><span class="label-mine">내 말</span>AI를 통해서 처음으로 만들어 볼 게임의 원본 게임을 정하고 그 게임의 구조 및 플레이 방식에 대해서 다각도로 고찰했다.</blockquote>
+      </div>
+    </li>
+    <li class="stage road">
+      <div class="cell" aria-hidden="true">B</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>정의</h3></div>
+        <p>상황, 문제, 목표를 내 말로 쓰고, 남이 읽고 됐는지 가릴 수 있는 끝나는 기준을 정했다. 게임 오버는 네 경우(차·열차에 부딪힘이나 물·빈 공간에 빠짐, 뒤로 4번 연속, 다가오는 붉은 선, 발판을 탄 채 화면 옆 끝)로 못 박았다. reviewer 가 세 번 보고서야 기준을 채웠다.</p>
+        <blockquote><span class="label-mine">내 말</span>잘못되었던 게임 오버 규칙(한 칸 움직일 때마다 배경이 움직여 게임 오버에 가까워짐)을 수정하였고, reviewer를 여러 번 활용하여 끊임없이 검토를 요청하여 잘못된 점을 찾아내어 수정할 수 있었다.</blockquote>
+      </div>
+    </li>
+    <li class="stage water">
+      <div class="cell" aria-hidden="true">C</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>쪼개기</h3></div>
+        <p>핵심 루프를 한 줄로 쓰고 작업 8개로 나눴다. 미뤄 둔 수치(한 판 시간, 뒤처짐 선, 황소 범위 등)는 AI가 낸 후보 가운데 내가 고르고 이유를 결정 기록에 남겼다. 엔진은 칸 단위 2D 라 웹(HTML과 자바스크립트)으로 정했다.</p>
+        <blockquote><span class="label-mine">내 말</span>게임 내 세부 규칙을 설계했다.</blockquote>
+      </div>
+    </li>
+    <li class="stage road">
+      <div class="cell" aria-hidden="true">D</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>첫 판</h3></div>
+        <p>작업 1을 먼저 만들어 확인하고(AI 9분), 2~8은 한 번에 만들되 작업마다 따로 열어 볼 수 있게 남겼다(AI 22분). 해 보고 찾은 고칠 점은 세 묶음으로 고쳤다(AI 약 16분). AI는 게임을 실행할 수 없어서 브라우저 없이 규칙을 검사하고(176개), 바로 앞 줄만 보고 움직이는 봇으로 건널 수 있는 판인지 쟀다. 화면, 소리, 손맛은 내가 봤다.</p>
+        <blockquote><span class="label-mine">내 말</span>요청에 따라 빌드된 게임의 기능들을 직접 확인하며 설계한 대로 완성되었는지 확인하였다. 또한 실제로 플레이해 보았을 때 개선점이 있다면 이를 반영하여 더 나은 결과물을 도출해내도록 하였다.</blockquote>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="cell" aria-hidden="true">E</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>올리기</h3></div>
+        <p>저장소를 공개하고 GitHub Pages 로 링크를 만들어 PC 와 휴대폰에서 열리는 것을 확인했다. 최고 기록을 넘기는 순간의 팡파레와 "PC 키보드 전용" 표시를 더했다.</p>
+        <blockquote><span class="label-mine">내 말</span>추가 수정 사항 몇 가지를 추가하고 게임 링크 오픈 형태로 전환했다.</blockquote>
+      </div>
+    </li>
+    <li class="stage water">
+      <div class="cell" aria-hidden="true">F</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>다듬기</h3></div>
+        <p>처음 보는 사람 1명(20대, PC 키보드)이 설명 없이 결과창까지 갔다. 지적은 차 판정과 통나무 판정이었다. 이것을 출발점으로 작업 15~25를 하나씩 고치고 매번 직접 해 봤다: 차 판정을 그림 폭에 맞춤, 통나무에 올라탈 때 비스듬히 가지 않게, 뒤로 4번이면 새가 낚아챔, 차와 열차 소리의 무게, 개구리 조작, Esc 일시정지.</p>
+        <blockquote><span class="label-mine">플레이 메모 (내 말)</span>차에 치이는 판정이 보이는 것보다 빡빡해서 플레이에 있어서 불쾌감을 겪었다. 특히 차가 지나간 후에 뒷부분에 치이는 경우가 많았다.</blockquote>
+        <blockquote><span class="label-mine">내 말</span>테스터에게 나의 게임을 플레이하도록 하고, 피드백을 받아 이를 수정하였다.</blockquote>
+      </div>
+    </li>
+    <li class="stage">
+      <div class="cell" aria-hidden="true">G</div>
+      <div class="stage-body">
+        <div class="stage-head"><h3>정리</h3></div>
+        <p>README 를 채우고 회고를 했다. 로그와 장부에서 반복된 막힘을 세고, 그동안 고친 작업 규칙마다 효과가 있었는지 판정했다. 모바일 조작은 넣지 않기로 정했다. 마지막으로 그래픽을 다듬었다. 돌 그림에만 있던 방식(바닥 그림자, 같은 색 계열의 진한 테두리, 밝은 윗면과 어두운 아랫면)을 나무, 차, 열차, 통나무, 캐릭터, 바닥까지 넓혔고, 그림의 가로 바깥 끝(판정에 쓰는 끝)은 그대로 두어 판정은 바뀌지 않았다. 해 보고 통나무 끝을 둥글게 고치고 기본 캐릭터 볼의 주황 줄을 뺐다.</p>
+        <blockquote><span class="label-mine">새로 할 수 있게 된 것 (내 말)</span>게임의 기본적인 동작 매커니즘을 익혀 이후 게임 개발의 이해도를 높일 수 있었다.</blockquote>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>AI와 나눈 일</h2>
+  <div class="split">
+    <div>
+      <h3>내가 맡은 것</h3>
+      <ul>
+        <li>무엇을 만들지, 재미와 방향 정하기</li>
+        <li>AI가 낸 후보 가운데 고르고 이유 남기기</li>
+        <li>직접 해 보고 됐는지 안 됐는지 판단하기</li>
+        <li>테스터에게 시키고 플레이 메모 쓰기</li>
+        <li>문제 정의, 고른 이유, 로그의 내 칸은 내 말로</li>
+      </ul>
+    </div>
+    <div>
+      <h3>AI(Claude Code)에게 맡긴 것</h3>
+      <ul>
+        <li>게임 코드 쓰기와 고치기</li>
+        <li>브라우저 없이 규칙을 검사하는 도구와 봇</li>
+        <li>바꿀 방향을 후보 표와 추천으로 내기</li>
+        <li>결정 기록, 작업 표, 장부 정리</li>
+        <li>기록을 모아 이 페이지로 정리</li>
+        <li>reviewer: 만든 과정을 보지 않은 눈으로 검토</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>AI가 틀린 곳과 잡은 방법</h2>
+  <p class="lead">AI의 결과를 고치게 하거나 같은 설명을 다시 한 일, 틀린 것을 찾은 일은 그 자리에서 장부에 한 줄씩 적었다. 게임 1 에서 31줄이 쌓였다.</p>
+  <div class="finder">
+    <div class="bar" role="img" aria-label="장부 31줄: 내가 잡아 고치게 함 19, reviewer 가 찾음 7, AI가 스스로 찾음 3, 내가 틀린 일 2">
+      <span class="c-user" style="flex:19"></span>
+      <span class="c-rev" style="flex:7"></span>
+      <span class="c-ai" style="flex:3"></span>
+      <span class="c-self" style="flex:2"></span>
+    </div>
+    <div class="legend">
+      <span><i class="c-user"></i>내가 잡아 고치게 함 <span class="mono">19</span></span>
+      <span><i class="c-rev"></i>reviewer 가 찾음 <span class="mono">7</span></span>
+      <span><i class="c-ai"></i>AI가 스스로 찾음 <span class="mono">3</span></span>
+      <span><i class="c-self"></i>내가 틀린 일 <span class="mono">2</span></span>
+    </div>
+  </div>
+  <ul class="mistakes">
+    <li><span class="tag">C</span><blockquote><span class="label-mine">내 말</span>규칙에 대한 누락 지점이 중간중간에 발생하였고, 이를 지속적인 reviewer 사용을 통한 끊임없는 확인을 통하여 바로잡았다. 해금한 캐릭터의 플레이 방식을 통하여 캐릭터를 해금할 수 있냐는 다소 엉뚱한 물음을 바로잡아주거나, 필요한 규칙이 누락되었을 때 수동으로 적어주는 상황이 존재하였다.</blockquote></li>
+    <li><span class="tag">D</span><blockquote><span class="label-mine">내 말</span>AI는 장애물의 움직임을 미리 알고 있다는 가정 하에 플레이어가 대처 불가능한 상황이 나오지 않는다고 보고하였지만, 실제로 플레이어는 장애물을 포착하고 나서부터 대처할 수 있기에 이는 잘못된 판단이었다.</blockquote></li>
+    <li><span class="tag">F</span><blockquote><span class="label-mine">내 말</span>이전에 만들어 놓은 규칙 중 변경점이 있을 시 이전의 문서에서 해당 내용을 탐색하여 일괄 변경한다는 점을 누락한 것을 확인하고 지적하여 수정하였다.</blockquote></li>
+  </ul>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>반복된 막힘 (게임 1 장부)</th><th>횟수</th><th>장부 번호</th></tr></thead>
+      <tbody>
+        <tr><td>AI가 정한 그림·소리·움직임이 해 보니 기대와 다름</td><td class="num">6</td><td class="num">11, 13, 14, 23, 24, 43</td></tr>
+        <tr><td>바꾼 결정이 다른 문서에 안 따라가 옛 표현이 남음</td><td class="num">5</td><td class="num">5, 7, 9, 18, 29</td></tr>
+        <tr><td>바탕 문서의 항목이나 단서(연속, 성공 시에만)가 옮기면서 빠짐</td><td class="num">4</td><td class="num">4, 6, 19, 22</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>규칙 변화 기록</h2>
+  <p class="lead">장부에 같은 종류가 두 번 쌓이면 AI 작업 규칙을 한 줄 고치자고 제안받고, 내가 고르거나 범위를 좁혀서 넣었다. 회고에서 고친 뒤에 같은 막힘이 몇 번 나왔는지 세어, 두 번 이상이면 효과 없음으로 판정했다. 효과가 없던 둘은 규칙을 더 늘리지 않고, 저장 전에 reviewer 를 권하는 범위를 넓히는 쪽으로 바꿨다. 게임 1 과 관계없는 두 줄(게임 2 에서 나온 규칙, 두 게임 병행 요청)은 싣지 않았다.</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>바꾼 것</th><th>계기 (장부)</th><th>판정</th></tr></thead>
+      <tbody>
+        <tr><td>시작 전에 바뀔 방향과 결과를 말하고 확인받는다 (내 말로 고침)</td><td class="num">첫날 과제</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>원작 규칙과 수치를 기억으로 적으면 틀릴 수 있다고 알린다</td><td class="num">2, 3</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>기준 표를 내기 전에 바탕 문서와 대조표를 먼저 보인다</td><td class="num">4, 6</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>원칙 하나를 적용하면 같은 것이 나오는 다른 곳을 찾아 먼저 보고한다</td><td class="num">5, 9</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>AI가 정한 것 가운데 핵심 기능에 영향을 주는 것은 보고에 적는다 (AI 제안은 "빠짐없이", 내가 좁힘)</td><td class="num">11, 13</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>규칙 제안은 한 번에 하나, 꼭 필요한 범위로 좁게</td><td class="num">10, 15</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>결정이나 수치를 바꾸면 적힌 다른 곳도 같이 고치고 보고한다 (AI 제안은 "먼저 확인받기", 내가 "수정하고 보고는 하자"로)</td><td class="num">7, 18</td><td><span class="verdict v-no">효과 없음</span></td></tr>
+        <tr><td>숫자는 세어 보고, 무엇을 셌는지 같이 말한다</td><td class="num">16, 21</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>규칙을 옮겨 적을 때 단서(연속, 성공 시에만)를 빼지 않는다</td><td class="num">19, 22</td><td><span class="verdict v-ok">효과 있음</span></td></tr>
+        <tr><td>고친 뒤에는 옛 값과 옛 표현을 다시 검색해 남은 곳이 0 인지 보고한다</td><td class="num">18, 29</td><td><span class="verdict v-no">효과 없음</span></td></tr>
+        <tr><td>저장 전 reviewer 검토를 게임 코드뿐 아니라 기획 문서가 바뀐 날에도 권한다 (회고에서 고름)</td><td class="num">회고</td><td><span class="mono">다음 회고에서</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section>
+  <h2>넣지 않은 것과 다음</h2>
+  <div class="next">
+    <p>모바일(터치) 조작은 넣지 않았다. 게임 만들기를 연습하려고 만든 것이라 모바일은 넘겼다. 그래서 휴대폰에서는 열리지만 조작은 PC 키보드로만 된다.</p>
+    <p><span class="label-mine">다음 게임에서 다르게 할 것 (내 말)</span><br>그래픽 퀄리티 상승 및 2.5D 이상의 공간감 구현</p>
+  </div>
+</section>
+
+<footer>
+  <p>원본: <a href="https://github.com/MongSsill/ai-seed-kit-games/blob/main/LESSONS.md">배운 것 장부</a> · <a href="https://github.com/MongSsill/ai-seed-kit-games/blob/main/docs/decisions.md">결정 기록</a> · <a href="https://github.com/MongSsill/ai-seed-kit-games/tree/main/logs">실험 로그</a></p>
+</footer>
+
+</div>
