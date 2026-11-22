@@ -96,19 +96,21 @@ function near(a, b, eps) { return Math.abs(a - b) <= (eps || 1e-6); }
   var G = '모양';
   g.boss.x = 0; g.boss.y = 0; g.player.x = 100; g.player.y = 0;
   var fan = h.makeAttack(0), ring = h.makeAttack(1), dash = h.makeAttack(2), burst = h.makeAttack(3);
+  // 범위 숫자는 게임에서 읽는다 (2026-11-22 보스가 커져 범위가 18 씩 늘어 옛 숫자로 적은 검사 넷이 틀림)
+  var PT = h.consts.PATTERNS, BR = h.consts.BOSS_R;
   check(G, '부채꼴: 정면 100 안', h.inAttack(fan, 100, 0));
-  check(G, '부채꼴: 정면 160 밖', !h.inAttack(fan, 160, 0));
+  check(G, '부채꼴: 정면 ' + (PT[0].r + 10) + ' 밖', !h.inAttack(fan, PT[0].r + 10, 0));
   check(G, '부채꼴: 뒤쪽 밖', !h.inAttack(fan, -100, 0));
   check(G, '부채꼴: 옆 90도 밖', !h.inAttack(fan, 0, 100));
   check(G, '부채꼴: 40도 안', h.inAttack(fan, Math.cos(0.7) * 100, Math.sin(0.7) * 100));
   check(G, '둘레 원: 90 안', h.inAttack(ring, 0, 90));
-  check(G, '둘레 원: 120 밖', !h.inAttack(ring, 0, -120));
+  check(G, '둘레 원: ' + (PT[1].r + 10) + ' 밖', !h.inAttack(ring, 0, -(PT[1].r + 10)));
   check(G, '돌진: 앞 200 안', h.inAttack(dash, 200, 10));
-  check(G, '돌진: 앞 250 밖', !h.inAttack(dash, 250, 0));
-  check(G, '돌진: 옆 60 밖', !h.inAttack(dash, 100, 60));
-  check(G, '돌진: 뒤 밖', !h.inAttack(dash, -60, 0));
+  check(G, '돌진: 앞 ' + (PT[2].len + 10) + ' 밖', !h.inAttack(dash, PT[2].len + 10, 0));
+  check(G, '돌진: 옆 ' + (PT[2].half + 14) + ' 밖', !h.inAttack(dash, 100, PT[2].half + 14));
+  check(G, '돌진: 뒤 밖', !h.inAttack(dash, -(BR + 12), 0));
   check(G, '넓은 원: 160 안', h.inAttack(burst, -160, 0));
-  check(G, '넓은 원: 200 밖', !h.inAttack(burst, 0, 200));
+  check(G, '넓은 원: ' + (PT[3].r + 10) + ' 밖', !h.inAttack(burst, 0, PT[3].r + 10));
   check(G, '붉은 것은 burst 하나', h.consts.PATTERNS.filter(function (p) { return p.color === 'red'; }).length === 1);
   check(G, '노란 것 셋', h.consts.PATTERNS.filter(function (p) { return p.color === 'yellow'; }).length === 3);
 })();
@@ -161,14 +163,14 @@ function fresh(search, seed) {
 // ---- 3-2. 구석·벽에서 보스에게 갇히지 않음 (2026-11-22 "모서리에 몰리면 보스에게 껴서 갇힌다") ----
 (function () {
   var G = '갇힘';
-  var minD = 30 + 14; // BOSS_R + PLAYER_R
-  var cases = [
-    { name: '구석', px: 186, py: 186, bx: 170, by: 170, key: 'ArrowLeft' },
-    { name: '벽', px: 186, py: 0, bx: 170, by: 0, key: 'ArrowUp' },
-    { name: '구석 반대편', px: -186, py: -186, bx: -170, by: -170, key: 'ArrowRight' } // 벽을 따라 빠져나감 (보스 쪽으로 걸으면 보스를 뚫지 못한다)
+  var cases = [ // 보스 가운데는 바닥 끝에서 반지름 안쪽까지만 간다 (보스가 커지기 전 170 → 150)
+    { name: '구석', px: 186, py: 186, bx: 150, by: 150, key: 'ArrowLeft' },
+    { name: '벽', px: 186, py: 0, bx: 150, by: 0, key: 'ArrowUp' },
+    { name: '구석 반대편', px: -186, py: -186, bx: -150, by: -150, key: 'ArrowRight' } // 벽을 따라 빠져나감 (보스 쪽으로 걸으면 보스를 뚫지 못한다)
   ];
   cases.forEach(function (cs, i) {
     var h = fresh('', 400 + i), g = h.getGame();
+    var minD = h.consts.BOSS_R + h.consts.PLAYER_R;
     g.boss.phase = 'wait'; g.boss.t = 99; g.boss.still = true; g.boss.attack = null;
     g.player.x = cs.px; g.player.y = cs.py; g.boss.x = cs.bx; g.boss.y = cs.by;
     h.run(0.05);
@@ -441,6 +443,10 @@ function fresh(search, seed) {
   hold(); g.chars[0].specialCd = 0; g.player.x = 60; g.player.y = 0; g.dodgeCd = 0; h.run(0.2);
   h.key('s'); h.key('Shift');
   check(G, '스킬 중 회피하면 멈춤이 풀림', g.lock === 0, g.lock);
+  // 스킬을 쓰면 그 스킬 시간의 절반 동안 맞지 않는다 (2026-11-22). 빨강 궁극 1.0초 → 0.5초
+  h.run(1.5); hold(); g.cur = 0; g.chars[0].ult = 100; g.invuln = 0; h.key('d');
+  check(G, '궁극을 쓰면 시간의 절반(0.5초) 동안 맞지 않음', near(g.invuln, h.consts.SKILLS[0].ult.d * h.consts.SKILL_INVULN, 0.001) && h.consts.SKILL_INVULN === 0.5, g.invuln);
+  h.run(1.2);
   // 파랑 설원: 보스가 다가오는 빠르기 30% 느리게, 2초 뒤 사라짐
   h.run(2.0); hold(); g.cur = 1; g.chars[1].specialCd = 0; g.player.x = 60; g.player.y = 0; h.run(0.1);
   h.key('s'); h.run(0.3);
@@ -448,8 +454,115 @@ function fresh(search, seed) {
   g.player.x = 190; g.player.y = 190; g.boss.t = 99; g.boss.still = true; var bx0 = g.boss.x, by0 = g.boss.y; h.run(0.2);
   var slowD = Math.hypot(g.boss.x - bx0, g.boss.y - by0);
   check(G, '설원 안에서 보스가 70% 빠르기로 다가옴 (0.2초에 약 9.8)', near(slowD, 70 * 0.7 * 0.2, 0.6), slowD);
+  check(G, '설원에 눈송이 입자가 내림', g.sfx.some(function (q) { return q.shape === 'flake'; }), g.sfx.length);
   h.run(2.0);
   check(G, '설원은 2초 뒤 사라짐', g.snow === null);
+  // 빨강 특수: 불을 뿜는 동안 불 입자가 나온다 (2026-11-22 스킬 다듬기)
+  h.run(2.0); hold(); g.cur = 0; g.chars[0].specialCd = 0; g.player.x = 60; g.player.y = 0; g.sfx.length = 0; h.run(0.1);
+  h.key('s'); h.run(0.35);
+  check(G, '빨강 특수: 불 입자가 나옴', g.sfx.filter(function (q) { return q.ramp === h.consts.FIRE; }).length > 10, g.sfx.length);
+})();
+
+// ---- 6-3. 골렘 (2026-11-22): 걸은 거리(다리를 흔드는 박자), 패턴마다 공격이 나가면 파편·먼지·충격파·폭발 ----
+(function () {
+  var G = '골렘';
+  var h = fresh('', 81), g = h.getGame(), b = g.boss;
+  b.still = false; b.x = 0; b.y = 0; g.player.x = 180; g.player.y = 180; b.phase = 'wait'; b.t = 99; b.attack = null;
+  h.run(0.5);
+  check(G, '보스가 움직이면 걸은 거리가 쌓임', b.walk > 10 && b.moving > 0, [b.walk, b.moving]);
+  for (var idx = 0; idx < 4; idx++) {
+    g.debris.length = 0; g.fx.length = 0; b.x = 0; b.y = 0; g.player.x = 150; g.player.y = 150; g.invuln = 99;
+    b.attack = h.makeAttack(idx); b.phase = 'telegraph'; b.t = 0.01; h.step(1 / 60); h.step(1 / 60);
+    var id = h.consts.PATTERNS[idx].id;
+    check(G, id + ': 공격이 나가면 파편이나 먼지가 생김', b.phase === 'active' && g.debris.length > 0, [b.phase, g.debris.length]);
+    if (id === 'ring' || id === 'burst') check(G, id + ': 바닥에 ' + (id === 'ring' ? '충격파' : '폭발 고리'), g.fx.some(function (f) { return f.kind === (id === 'ring' ? 'quake' : 'blast'); }));
+    try { h.draw(); check(G, id + ': 공격 순간 그리기', true); } catch (e) { check(G, id + ': 공격 순간 그리기', false, e.message); }
+    h.run(1.2);
+  }
+  check(G, '파편과 먼지는 시간이 지나면 사라짐', g.debris.length === 0, g.debris.length);
+})();
+
+// ---- 6-2. 캐릭터 몸짓 (2026-11-22 팔다리를 잘라 걷기와 캐릭터마다 기본 공격 모션) ----
+(function () {
+  var G = '몸짓';
+  var h = fresh('', 82), g = h.getGame(), b = g.boss;
+  b.x = 0; b.y = 0; g.player.x = 200; g.player.y = 200; g.invuln = 99;
+  var w0 = g.pwalk || 0;
+  h.key('ArrowRight'); h.run(0.3);
+  var P = h.charPose(0);
+  check(G, '걸으면 걸은 거리가 쌓임', g.pwalk > w0 + 10 && g.pmoving > 0, [w0, g.pwalk, g.pmoving]);
+  var swung = false, bobbed = false;
+  for (var n = 0; n < 30; n++) { h.step(1 / 60); P = h.charPose(0); if (Math.abs(P.r.ll) > 0.1 && P.r.ll * P.r.rl < 0) swung = true; if (P.bob < -1) bobbed = true; }
+  check(G, '빨강: 걸을 때 두 다리가 반대로 흔들림', swung);
+  check(G, '걸을 때 몸이 오르내림', bobbed);
+  h.keyUp('ArrowRight'); h.run(0.4);
+  P = h.charPose(0);
+  check(G, '멈추면 다리 흔들림이 0', Math.abs(P.r.ll) < 1e-6 && Math.abs(P.bob) < 1e-6, [P.r.ll, P.bob]);
+  // 기본 공격 1·3타의 자세가 캐릭터마다 다른 부위를 움직인다
+  var hitPose = function (ci, idx) {
+    var hh = fresh('', 83 + ci), gg = hh.getGame(), bb = gg.boss;
+    bb.x = 0; bb.y = 0; gg.player.x = 60; gg.player.y = 0; gg.cur = ci; gg.invuln = 99; gg.combo = idx;
+    hh.key('a'); hh.keyUp('a'); hh.run(0.1);
+    return hh.charPose(ci);
+  };
+  var r0 = hitPose(0, 0), r2 = hitPose(0, 2), b0 = hitPose(1, 0), b2 = hitPose(1, 2), g0 = hitPose(2, 0), g2 = hitPose(2, 2);
+  check(G, '빨강 1타: 앞팔 할퀴기', Math.abs(r0.r.ra) > 0.8, r0.r.ra);
+  check(G, '빨강 3타: 꼬리 휘두르기', Math.abs(r2.r.tail) > 0.8, r2.r.tail);
+  check(G, '파랑 1타: 한 팔 뻗기', Math.abs(b0.r.ra) > 0.8, b0.r.ra);
+  check(G, '파랑 3타: 두 팔 벌리기', b2.r.la > 0.8 && b2.r.ra < -0.8, [b2.r.la, b2.r.ra]);
+  check(G, '초록 1타: 앞주먹 내지르기', g0.dx.fa < -20, g0.dx.fa);
+  check(G, '초록 3타: 앞다리 차기', g2.r.fl > 0.6, g2.r.fl);
+  try { h.draw(); check(G, '몸짓 그리기', true); } catch (e) { check(G, '몸짓 그리기', false, e.message); }
+})();
+
+// ---- 6-3. 보스 크기, 파랑 원거리, 쉬는 캐릭터 얼굴 칸 (2026-11-22) ----
+(function () {
+  var G = '키움';
+  var h = fresh('', 90), C = h.consts;
+  check(G, '보스 그림 높이가 캐릭터(92)의 약 2배', C.BOSS_H / 92 >= 1.9, C.BOSS_H);
+  check(G, '보스 몸 반지름 48', C.BOSS_R === 48, C.BOSS_R);
+  check(G, '시작 거리는 보스 가장자리에서 150', near(C.START_DIST - C.BOSS_R, 150), C.START_DIST);
+  check(G, '빨강·초록 사거리는 그대로 (가장자리에서 60)', near(h.attackReach(0) - C.BOSS_R - C.PLAYER_R, 60) && near(h.attackReach(2), h.attackReach(0)), h.attackReach(0));
+  check(G, '파랑 사거리는 1.5배 (가장자리에서 90)', near(h.attackReach(1) - C.BOSS_R - C.PLAYER_R, 90), h.attackReach(1));
+  check(G, '파랑 기본 공격은 9·9·14 (다른 캐릭터 10·10·15)', h.comboDmg(1, 0) === 9 && h.comboDmg(1, 1) === 9 && h.comboDmg(1, 2) === 14 && h.comboDmg(0, 2) === 15, [h.comboDmg(1, 0), h.comboDmg(1, 1), h.comboDmg(1, 2)]);
+  check(G, '파랑 사거리가 둘레 원 범위 밖까지 닿음 (거리로 피하며 때릴 수 있는 패턴은 둘레 원 하나)', h.attackReach(1) > C.PATTERNS[1].r + C.PLAYER_R * 0.5 && h.attackReach(1) < C.PATTERNS[0].r && h.attackReach(1) < C.PATTERNS[3].r, h.attackReach(1));
+  // 실제로 때려 보기: 보스 가운데에서 140 에 서면 파랑은 맞고 빨강은 빗나감
+  var hitAt = function (ci) {
+    var hh = fresh('', 91 + ci), gg = hh.getGame(), bb = gg.boss;
+    bb.phase = 'wait'; bb.t = 99; bb.still = true; bb.attack = null; bb.x = 0; bb.y = 0; gg.player.x = 140; gg.player.y = 0; gg.cur = ci; gg.invuln = 99;
+    var hp0 = bb.hp; hh.key('a'); hh.keyUp('a'); hh.run(0.05);
+    return hp0 - bb.hp;
+  };
+  check(G, '140 에서 파랑은 맞음 (9)', hitAt(1) === 9, hitAt(1));
+  check(G, '140 에서 빨강은 빗나감', hitAt(0) === 0, hitAt(0));
+  // 쉬는 캐릭터 얼굴 칸
+  var g = h.getGame();
+  g.cur = 0;
+  var v = h.benchView();
+  check(G, '얼굴 칸은 쉬는 둘 (파랑, 초록)', v.length === 2 && v[0].ch === 1 && v[1].ch === 2, v.map(function (x) { return x.ch; }));
+  g.chars[1].specialCd = C.SPECIAL_CD; g.chars[2].specialCd = C.SPECIAL_CD / 2;
+  v = h.benchView();
+  check(G, '특수를 막 썼으면 0, 반쯤 돌았으면 0.5 만큼 차오름', near(v[0].fill, 0) && near(v[1].fill, 0.5), [v[0].fill, v[1].fill]);
+  g.chars[1].ult = C.ULT_MAX; g.chars[2].ult = C.ULT_MAX - 1;
+  v = h.benchView();
+  check(G, '궁극이 다 찬 캐릭터만 반짝임', v[0].ultFull && !v[1].ultFull);
+  g.chars[2].hp = 0;
+  v = h.benchView();
+  check(G, '쓰러진 캐릭터는 X, 차오르지 않음', v[1].down && v[1].fill === 0);
+  g.cur = 1;
+  v = h.benchView();
+  check(G, '태그하면 얼굴 칸이 바뀜 (빨강, 초록)', v[0].ch === 0 && v[1].ch === 2);
+  try { h.draw(); check(G, '얼굴 칸 그리기', true); } catch (e) { check(G, '얼굴 칸 그리기', false, e.message); }
+  // 아이콘 (2026-11-22 다시 그림): 쿨타임이 돈 만큼 0 → 1 로 차오른다
+  var h2 = fresh('', 95), g2 = h2.getGame();
+  g2.dodgeCd = C.DODGE_CD / 2; g2.chars[g2.cur].specialCd = C.SPECIAL_CD; g2.chars[g2.cur].ult = C.ULT_MAX / 4;
+  var iv = h2.iconView();
+  check(G, '아이콘: 회피 반쯤, 특수 0, 궁극 0.25', near(iv.dodge, 0.5) && near(iv.special, 0) && near(iv.ult, 0.25), iv);
+  check(G, '아이콘: 들어올 캐릭터가 있으면 태그 1', iv.tag === 1, iv.tag);
+  g2.chars.forEach(function (cc, i) { if (i !== g2.cur) cc.tagCd = C.TAG_CD / 4; });
+  check(G, '아이콘: 둘 다 쿨타임이면 가장 빨리 돌아오는 만큼 (0.75)', near(h2.iconView().tag, 0.75), h2.iconView().tag);
+  check(G, '아이콘 그림 여덟 종류 (회피·태그·특수 셋·궁극 셋)', ['dodge', 'tag', 's0', 's1', 's2', 'u0', 'u1', 'u2'].every(function (k) { return k in h2.iconArt; }), Object.keys(h2.iconArt));
+  try { h2.draw(); check(G, '아이콘 그리기', true); } catch (e) { check(G, '아이콘 그리기', false, e.message); }
 })();
 
 // ---- 7. 그로기 ----
@@ -521,14 +634,19 @@ function fresh(search, seed) {
   check(G, '짧은 순 정렬', saved.map(function (r) { return r.t; }).join(',') === '60,70,80,90,100', saved.map(function (r) { return r.t; }));
   check(G, '성공하면 랭킹 보임', !h.els['rank-wrap'].classList.contains('hidden'));
   var rows = h.els['rank-table'].children;
-  check(G, '마지막 판(70) 은 2위 줄이 빛남', rows[1] && rows[1].className === 'me', rows.map(function (r) { return r.className; }));
+  var isMe = function (r) { return (' ' + r.className + ' ').indexOf(' me ') >= 0; };
+  check(G, '마지막 판(70) 은 2위 줄이 빛남', rows[1] && isMe(rows[1]), rows.map(function (r) { return r.className; }));
+  check(G, '5위 안이면 (순위 밖) 안 보임', h.els['result-out'].classList.contains('hidden'));
+  check(G, '1~3위 줄에 메달 칸 (r1·r2·r3)', rows[0].className.indexOf('r1') >= 0 && rows[2].className.indexOf('r3') >= 0 && rows[0].innerHTML.indexOf('medal') >= 0, rows[0].className);
   check(G, '결과에 궁극 횟수', h.els['result-reason'].textContent.indexOf('궁극 스킬 쓴 횟수') >= 0, h.els['result-reason'].textContent);
   // 5위 밖 성공
   h = fresh('', 99); var g9 = h.getGame();
   g9.clock = 170; g9.boss.phase = 'wait'; g9.boss.attack = null; g9.boss.t = 99; g9.boss.still = true; g9.boss.hp = 5; g9.player.x = 60; g9.player.y = 0;
   h.key('a');
   rows = h.els['rank-table'].children;
-  check(G, '5위 밖이면 빛나는 줄 없음 + 안내 줄', rows.length === 6 && rows.every(function (r) { return r.className !== 'me'; }) && rows[5].innerHTML.indexOf('5위 안에') >= 0);
+  // 2026-11-22 랭킹판 아래 "5위 안에 들지 못했다" 줄을 지우고 클리어타임 밑에 "(순위 밖)"
+  check(G, '5위 밖이면 빛나는 줄 없음, 안내 줄 없음 (5줄)', rows.length === 5 && rows.every(function (r) { return !isMe(r); }), rows.length);
+  check(G, '5위 밖이면 클리어타임 밑에 (순위 밖)', !h.els['result-out'].classList.contains('hidden'));
   check(G, '5위 밖 판은 저장 안 바뀜', JSON.parse(store['g2-slice-rank']).length === 5 && JSON.parse(store['g2-slice-rank'])[4].t === 100);
   // ?test
   var before = store['g2-slice-rank'];
@@ -543,7 +661,7 @@ function fresh(search, seed) {
   ht.key('a');
   check(G, '?test 격파 성공', ht.getState() === 'result');
   rows = ht.els['rank-table'].children;
-  check(G, '?test 랭킹은 예시 5개 + 내 줄 (6줄, 1위 빛남)', rows.length === 5 && rows[0].className === 'me' && rows[1].innerHTML.indexOf('예시') >= 0, rows.length);
+  check(G, '?test 랭킹은 예시 5개 + 내 줄 (6줄, 1위 빛남)', rows.length === 5 && (' ' + rows[0].className + ' ').indexOf(' me ') >= 0 && rows[1].innerHTML.indexOf('예시') >= 0, rows.length);
   check(G, '?test 는 저장 안 함', store['g2-slice-rank'] === before);
 })();
 
@@ -597,7 +715,8 @@ function fresh(search, seed) {
     check(G, '0.1초 뒤 더 나아감', moved2 > moved1, [moved1, moved2]);
     hd.run(0.2);
     var moved3 = Math.hypot(gd.boss.x - sx, gd.boss.y - sy);
-    var endD = Math.hypot(Math.max(-170, Math.min(170, ad.ox + ad.dir.x * ad.p.len)) - sx, Math.max(-170, Math.min(170, ad.oy + ad.dir.y * ad.p.len)) - sy);
+    var LIM = 200 - hd.consts.BOSS_R; // 보스 가운데가 갈 수 있는 끝 (바닥 200 - 반지름)
+    var endD = Math.hypot(Math.max(-LIM, Math.min(LIM, ad.ox + ad.dir.x * ad.p.len)) - sx, Math.max(-LIM, Math.min(LIM, ad.oy + ad.dir.y * ad.p.len)) - sy);
     check(G, '0.25초 뒤 직선 끝 (바닥 안으로 자른 자리)', near(moved3, endD, 0.5), [moved3, endD]);
     check(G, '미끄러진 뒤 recover', gd.boss.phase === 'recover', gd.boss.phase);
   }
@@ -626,8 +745,10 @@ if (process.argv[3] === 'sim') {
         var c = g.chars[g.cur];
         // 걸어서 피하는 중이면 보스 반대쪽으로 (스킬로 멈춰 있으면 못 걷는다)
         if (flee > 0) { flee -= dt; if (g.lock <= 0 && d > 0.01) { g.player.x = Math.max(-186, Math.min(186, g.player.x + (g.player.x - b.x) / d * 170 * dt)); g.player.y = Math.max(-186, Math.min(186, g.player.y + (g.player.y - b.y) / d * 170 * dt)); } }
-        // 보스 쪽으로 다가감 (한 번에 전부). 스킬로 멈춰 있으면 안 움직인다
-        else if (d > 70 && !g.dodge && g.lock <= 0) { var k = (d - 65) / d; g.player.x += (b.x - g.player.x) * Math.min(1, 170 * dt / (d - 65 || 1)); g.player.y += (b.y - g.player.y) * Math.min(1, 170 * dt / (d - 65 || 1)); }
+        // 보스 쪽으로 다가감. 스킬로 멈춰 있으면 안 움직인다. 근접은 보스 가장자리에서 35 (보스가 커지기 전과 같은 틈), 파랑은 사거리 끝에서 20 안쪽 (2026-11-22 원거리)
+        var reach = h.attackReach(g.cur), stand = g.cur === 1 ? reach - 20 : h.consts.BOSS_R + 35;
+        if (flee > 0) {}
+        else if (d > stand + 5 && !g.dodge && g.lock <= 0) { var mv = Math.min(1, 170 * dt / (d - stand || 1)); g.player.x += (b.x - g.player.x) * mv; g.player.y += (b.y - g.player.y) * mv; }
         if (b.phase === 'telegraph' && b.attack && b.attack !== lastTele) {
           // 전조 시작 뒤 0.2초쯤에 반응. 성공 확률 skill
           if (b.t < h.consts.TELEGRAPH - 0.2) {
@@ -644,7 +765,7 @@ if (process.argv[3] === 'sim') {
         if (b.phase !== 'telegraph') lastTele = null;
         if (c.ult >= 100) h.key('d');
         if (c.specialCd <= 0 && d < 200) h.key('s');
-        if (g.attackCd <= 0 && d < 100) h.key('a');
+        if (g.attackCd <= 0 && d < reach - 4) h.key('a');
       }
       var hpBefore = g.chars.reduce(function (s, c) { return s + c.hp; }, 0);
       h.step(dt); t += dt;

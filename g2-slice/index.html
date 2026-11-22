@@ -68,9 +68,45 @@
     .help { margin-top: 8px; font-size: 13px; color: #c9c9c9; }
     .keys { display: grid; grid-template-columns: auto auto; gap: 2px 14px; font-size: 14px; text-align: left; margin: 6px 0; }
     .keys b { color: #ffd54f; }
-    table.rank { border-collapse: collapse; font-size: 15px; margin: 4px 0; }
-    table.rank td { padding: 2px 10px; }
-    table.rank tr.me td { color: #ffd54f; font-weight: bold; text-shadow: 0 0 8px #ffd54f; }
+    /* 결과 화면과 랭킹판: 사원 돌판 (2026-11-22 "지금은 테두리도 없고, 뒷배경때문에 잘 보이지도 않아") */
+    #result { background: rgba(8, 9, 14, 0.88); gap: 2px; padding: 6px 16px; } /* 랭킹 5줄이어도 화면 480 안에 들게 간격을 줄임 */
+    #result .big { font-size: 34px; }
+    #restart-btn { margin: 4px; padding: 7px 26px; }
+    #rank-wrap {
+      position: relative;
+      min-width: 280px;
+      padding: 7px 20px 9px;
+      margin: 6px 0 2px;
+      background: linear-gradient(#2e303c, #1c1e28);
+      border: 3px solid #6b6978;
+      border-radius: 4px;
+      box-shadow: inset 0 0 0 2px #2a2c37, inset 0 0 0 4px #44475a, 0 0 18px rgba(77, 208, 225, 0.3), 0 8px 20px rgba(0, 0, 0, 0.6);
+    }
+    #rank-wrap::before, #rank-wrap::after {
+      content: '';
+      position: absolute;
+      top: -9px;
+      width: 12px;
+      height: 12px;
+      background: #4dd0e1;
+      border: 2px solid #1b1424;
+      transform: rotate(45deg);
+      box-shadow: 0 0 10px #4dd0e1;
+    }
+    #rank-wrap::before { left: -9px; }
+    #rank-wrap::after { right: -9px; }
+    .rank-title { font-weight: bold; letter-spacing: 6px; color: #e8e4f0; border-bottom: 1px solid #4a4a58; padding-bottom: 4px; margin-bottom: 4px !important; }
+    .rank-title span { font-size: 11px; letter-spacing: 0; color: #9e9aab; font-weight: normal; }
+    table.rank { border-collapse: separate; border-spacing: 0 2px; font-size: 15px; margin: 0 auto; }
+    table.rank td { padding: 1px 12px; background: rgba(255, 255, 255, 0.05); }
+    table.rank td.no { padding: 1px 6px; }
+    table.rank td.d { font-size: 12px; color: #9e9aab; }
+    .medal { display: inline-block; width: 20px; height: 20px; line-height: 20px; border-radius: 50%; font-size: 12px; font-weight: bold; color: #1b1424; background: #77748a; }
+    tr.r1 .medal { background: radial-gradient(circle at 35% 30%, #fff3b0, #ffca28 60%, #b8860b); box-shadow: 0 0 8px #ffca28; }
+    tr.r2 .medal { background: radial-gradient(circle at 35% 30%, #ffffff, #cfd8dc 60%, #78909c); }
+    tr.r3 .medal { background: radial-gradient(circle at 35% 30%, #ffe0c0, #d7a26b 60%, #8d5524); }
+    table.rank tr.me td { color: #ffd54f; font-weight: bold; text-shadow: 0 0 8px #ffd54f; background: rgba(255, 213, 79, 0.16); }
+    table.rank tr.me td.d { color: #ffe082; }
     /* 그로기 버튼: 화면 맨 아래 가운데 둥근 버튼과 고리 (2026-11-22, 캐릭터와 회오리를 가리지 않게 작게, 바탕은 옅게) */
     #groggy {
       background: rgba(12, 14, 20, 0.12);
@@ -113,12 +149,13 @@
       <p id="result-reason" class="small"></p>
       <p>클리어타임</p>
       <p class="big" id="result-time">0.00</p>
+      <p class="small hidden" id="result-out">(순위 밖)</p>
       <div id="rank-wrap">
-        <p class="small">랭킹 (이 브라우저)</p>
+        <p class="rank-title">랭킹 <span>(이 브라우저)</span></p>
         <table class="rank" id="rank-table"></table>
       </div>
       <button id="restart-btn">다시 하기</button>
-      <p class="small">Enter 다시 하기</p>
+      <p class="small">Enter</p>
     </div>
 
     <div id="groggy" class="overlay hidden">
