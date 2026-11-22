@@ -71,20 +71,23 @@
     table.rank { border-collapse: collapse; font-size: 15px; margin: 4px 0; }
     table.rank td { padding: 2px 10px; }
     table.rank tr.me td { color: #ffd54f; font-weight: bold; text-shadow: 0 0 8px #ffd54f; }
+    /* 그로기 버튼: 화면 맨 아래 가운데 둥근 버튼과 고리 (2026-11-22, 캐릭터와 회오리를 가리지 않게 작게, 바탕은 옅게) */
     #groggy {
-      background: rgba(12, 14, 20, 0.35);
+      background: rgba(12, 14, 20, 0.12);
       justify-content: flex-end;
-      padding-bottom: 150px;
+      padding-bottom: 2px;
     }
     #groggy-btn {
-      font-size: 26px;
-      padding: 14px 40px;
-      background: #ff7043;
+      width: 64px; height: 64px; padding: 0;
+      border-radius: 50%;
+      font-size: 28px; font-weight: bold;
+      background: radial-gradient(circle at 50% 38%, #4dd0e1, #00838f);
       color: #fff;
-      box-shadow: 0 0 24px #ff7043;
+      border: 3px solid #e0f7fa;
+      box-shadow: 0 0 0 6px rgba(77, 208, 225, 0.35), 0 0 26px #4dd0e1;
       animation: pulse 0.6s ease-in-out infinite alternate;
     }
-    #groggy-btn:hover { background: #ff8a65; }
+    #groggy-btn:hover { background: radial-gradient(circle at 50% 38%, #80deea, #00838f); }
     @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
   </style>
 </head>
@@ -119,8 +122,8 @@
     </div>
 
     <div id="groggy" class="overlay hidden">
-      <button id="groggy-btn">그로기!</button>
-      <p class="small">F 또는 클릭</p>
+      <button id="groggy-btn">F</button>
+      <p class="small">그로기 · F 또는 클릭</p>
     </div>
   </div>
   <div class="help">PC 키보드 전용 · 방향키 이동 · A 공격 · S 특수 · D 궁극 · Shift 회피 · Space 태그 · F 그로기</div>

@@ -78,7 +78,7 @@ function near(a, b, eps) { return Math.abs(a - b) <= (eps || 1e-6); }
   h.key('ArrowUp'); h.run(0.5); h.keyUp('ArrowUp');
   check(G, '위 키로 화면 위쪽(x+y 감소)', g.player.x + g.player.y < y0);
   // 3분 제한
-  g.clock = h.consts.LIMIT - 0.05; g.boss.phase = 'wait'; g.boss.t = 99;
+  g.clock = h.consts.LIMIT - 0.05; g.boss.phase = 'wait'; g.boss.t = 99; g.boss.still = true;
   h.run(0.2);
   check(G, '3분이 지나면 result', h.getState() === 'result');
   check(G, '격파 실패 글', h.els['result-title'].textContent === '격파 실패');
@@ -169,7 +169,7 @@ function fresh(search, seed) {
   ];
   cases.forEach(function (cs, i) {
     var h = fresh('', 400 + i), g = h.getGame();
-    g.boss.phase = 'wait'; g.boss.t = 99; g.boss.attack = null;
+    g.boss.phase = 'wait'; g.boss.t = 99; g.boss.still = true; g.boss.attack = null;
     g.player.x = cs.px; g.player.y = cs.py; g.boss.x = cs.bx; g.boss.y = cs.by;
     h.run(0.05);
     var d = Math.hypot(g.player.x - g.boss.x, g.player.y - g.boss.y);
@@ -233,11 +233,11 @@ function fresh(search, seed) {
   h2.run(0.6);
   check(G, '1초 뒤 쿨타임 0', g2.dodgeCd === 0);
   // 전조 밖 회피: 피하기만. 회피로 미끄러짐
-  g2.boss.phase = 'wait'; g2.boss.attack = null; g2.boss.t = 99;
+  g2.boss.phase = 'wait'; g2.boss.attack = null; g2.boss.t = 99; g2.boss.still = true;
   var px = g2.player.x;
-  g2.player.x = 0; g2.player.y = 150;
+  g2.boss.x = 0; g2.boss.y = 0; g2.player.x = 0; g2.player.y = 60; // 보스 반대쪽(아래)으로 미끄러질 자리를 비워 둔다 (보스가 옆걸음하게 된 뒤 자리를 정해 줌)
   h2.key('Shift'); h2.run(0.3);
-  check(G, '회피로 미끄러짐 (약 100)', near(Math.hypot(g2.player.x, g2.player.y - 150), 100, 15), Math.hypot(g2.player.x, g2.player.y - 150));
+  check(G, '회피로 미끄러짐 (약 100)', near(Math.hypot(g2.player.x, g2.player.y - 60), 100, 15), Math.hypot(g2.player.x, g2.player.y - 60));
   // 회피 쿨타임은 태그해도 이어서 돈다 (셋이 함께 쓰는 하나)
   g2.dodgeCd = 0.7; g2.chars.forEach(function (c) { c.tagCd = 0; });
   h2.key(' ');
@@ -249,7 +249,7 @@ function fresh(search, seed) {
   var G = '태그';
   var h = fresh('', 31);
   var g = h.getGame();
-  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
+  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99; g.boss.still = true;
   var bhp = g.boss.hp;
   h.key(' ');
   check(G, '다음 순서(1)로 바뀜', g.cur === 1);
@@ -321,17 +321,20 @@ function fresh(search, seed) {
 (function () {
   var G = '손맛';
   var h = fresh('', 62), g = h.getGame();
-  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
+  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99; g.boss.still = true;
   g.player.x = 60; g.player.y = 0;
   var b0 = g.boss.hp;
   h.key('a');
   check(G, '1타 10', b0 - g.boss.hp === 10, b0 - g.boss.hp);
   check(G, '맞으면 화면 흔들림', g.shake > 0, g.shake);
+  var fx1 = g.fx.filter(function (f) { return f.kind === 'atk'; }).pop();
+  check(G, '1타: 1타 자세와 지금 캐릭터의 1타 이펙트', g.swing && g.swing.i === 0 && fx1 && fx1.ch === g.cur && fx1.i === 0, [g.swing && g.swing.i, fx1 && fx1.ch]);
   h.run(0.4);
   check(G, '2타 10 (0.35초 뒤)', b0 - g.boss.hp === 20, b0 - g.boss.hp);
   h.run(0.35);
   check(G, '3타 15 (0.7초 뒤)', b0 - g.boss.hp === 35, b0 - g.boss.hp);
   check(G, '3타는 더 크게 흔들림', g.shakeAmp > 5, g.shakeAmp);
+  check(G, '3타 자세는 0.26초로 더 길게', g.swing && g.swing.i === 2 && g.swing.d === 0.26, g.swing);
   h.run(0.4);
   check(G, '3타 뒤 0.5초 숨 고르기 (아직 안 나감)', b0 - g.boss.hp === 35, b0 - g.boss.hp);
   h.run(0.15);
@@ -362,7 +365,7 @@ function fresh(search, seed) {
   var G = '스킬';
   var h = fresh('', 61);
   var g = h.getGame();
-  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
+  g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99; g.boss.still = true;
   g.player.x = 60; g.player.y = 0; // 보스 가장자리에서 30 (기본 공격 범위 안)
   // A 를 누르고 있으면 기본 공격이 이어진다 (첫 판 뒤 더함. 2026-11-22 부터 3타 10·10·15 라 1초에 35)
   var bhpHold = g.boss.hp;
@@ -378,11 +381,15 @@ function fresh(search, seed) {
   check(G, '기본 공격으로 궁극 +4', g.chars[0].ult === 4);
   h.key('a');
   check(G, '0.35초 안 다시 못 침', g.boss.hp === bhp - 10);
+  h.keyUp('a');
+  // 특수·궁극은 캐릭터마다 박자대로 나눠 들어간다 (2026-11-22). 다 들어가면 합이 40·120
   h.key('s');
-  check(G, '특수 스킬 40', g.boss.hp === bhp - 50);
+  check(G, '특수는 쓴 순간이 아니라 박자대로 들어감', g.boss.hp === bhp - 10, bhp - g.boss.hp);
   check(G, '특수로 궁극 +15', g.chars[0].ult === 19);
   check(G, '특수 쿨타임 8', near(g.chars[0].specialCd, h.consts.SPECIAL_CD));
-  h.key('s');
+  h.run(0.8);
+  check(G, '특수 스킬 합 40', g.boss.hp === bhp - 50, bhp - g.boss.hp);
+  h.key('s'); h.run(0.8);
   check(G, '쿨타임 중 특수 안 나감', g.boss.hp === bhp - 50);
   g.chars[2].specialCd = 8;
   h.run(2.0);
@@ -390,8 +397,8 @@ function fresh(search, seed) {
   h.key('d');
   check(G, '게이지 안 차면 궁극 안 나감', g.ultCount[0] === 0);
   g.chars[0].ult = 100; g.player.x = 190; g.player.y = 190; bhp = g.boss.hp;
-  h.key('d');
-  check(G, '궁극은 거리 무관 120', g.boss.hp === bhp - 120);
+  h.key('d'); h.run(1.3);
+  check(G, '궁극은 거리 무관 합 120', g.boss.hp === bhp - 120, bhp - g.boss.hp);
   check(G, '궁극 쓴 횟수 +1 (캐릭터 0)', g.ultCount[0] === 1 && g.ultCount[1] === 0);
   check(G, '궁극 게이지 0 으로', g.chars[0].ult === 0);
   // 궁극 게이지는 캐릭터마다 따로
@@ -402,9 +409,47 @@ function fresh(search, seed) {
   h.key('a');
   check(G, '캐릭터 1 의 게이지만 +4', g.chars[1].ult === 4 && g.chars[0].ult === 0);
   // 특수 범위 밖
+  h.keyUp('a'); h.run(0.6);
+  g.boss.x = 0; g.boss.y = 0; g.boss.t = 99; g.boss.still = true; // 앞 검사에서 보스가 다가와 있을 수 있어 가운데로
   g.player.x = 190; g.player.y = 190; g.chars[1].specialCd = 0; bhp = g.boss.hp;
-  h.key('s');
-  check(G, '특수 범위 밖이면 안 들어감 (쿨타임은 돎)', g.boss.hp === bhp && g.chars[1].specialCd > 0);
+  h.key('s'); h.run(0.8);
+  check(G, '특수 범위 밖이면 안 들어감 (쿨타임은 돎)', g.boss.hp === bhp && g.chars[1].specialCd > 0, bhp - g.boss.hp);
+})();
+
+// ---- 6-2. 캐릭터마다 스킬 (2026-11-22): 합은 특수 40·궁극 120, 스킬 중 멈춤, 회피로 풀림, 파랑 설원 30% 슬로우 ----
+(function () {
+  var G = '스킬2';
+  var h = fresh('', 63), g = h.getGame();
+  var hold = function () { g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99; g.boss.still = true; g.boss.x = 0; g.boss.y = 0; };
+  for (var ch = 0; ch < 3; ch++) {
+    hold(); g.cur = ch; g.player.x = 60; g.player.y = 0; g.chars[ch].specialCd = 0; h.run(0.6);
+    var b1 = g.boss.hp; h.key('s'); h.run(0.9);
+    check(G, '캐릭터 ' + ch + ' 특수 합 40', b1 - g.boss.hp === 40, b1 - g.boss.hp);
+    hold(); g.chars[ch].ult = 100; var b2 = g.boss.hp; h.key('d'); h.run(1.4);
+    check(G, '캐릭터 ' + ch + ' 궁극 합 120', b2 - g.boss.hp === 120, b2 - g.boss.hp);
+    h.run(1.0);
+  }
+  // 스킬이 나오는 동안 멈춘다 (빨강 특수 0.65초)
+  hold(); g.cur = 0; g.chars[0].specialCd = 0; g.player.x = 60; g.player.y = 0; h.run(2.5);
+  h.key('s'); var x0 = g.player.x, y0 = g.player.y;
+  h.key('ArrowDown'); h.run(0.3);
+  check(G, '스킬 중 방향키로 안 움직임', g.player.x === x0 && g.player.y === y0, [g.player.x - x0, g.player.y - y0]);
+  h.run(0.5);
+  check(G, '스킬이 끝나면 다시 움직임', Math.hypot(g.player.x - x0, g.player.y - y0) > 20);
+  h.keyUp('ArrowDown');
+  // 회피하면 멈춤이 풀린다
+  hold(); g.chars[0].specialCd = 0; g.player.x = 60; g.player.y = 0; g.dodgeCd = 0; h.run(0.2);
+  h.key('s'); h.key('Shift');
+  check(G, '스킬 중 회피하면 멈춤이 풀림', g.lock === 0, g.lock);
+  // 파랑 설원: 보스가 다가오는 빠르기 30% 느리게, 2초 뒤 사라짐
+  h.run(2.0); hold(); g.cur = 1; g.chars[1].specialCd = 0; g.player.x = 60; g.player.y = 0; h.run(0.1);
+  h.key('s'); h.run(0.3);
+  check(G, '파랑 특수 뒤 설원이 생김', !!g.snow && h.consts.SNOW_SLOW === 0.3, g.snow);
+  g.player.x = 190; g.player.y = 190; g.boss.t = 99; g.boss.still = true; var bx0 = g.boss.x, by0 = g.boss.y; h.run(0.2);
+  var slowD = Math.hypot(g.boss.x - bx0, g.boss.y - by0);
+  check(G, '설원 안에서 보스가 70% 빠르기로 다가옴 (0.2초에 약 9.8)', near(slowD, 70 * 0.7 * 0.2, 0.6), slowD);
+  h.run(2.0);
+  check(G, '설원은 2초 뒤 사라짐', g.snow === null);
 })();
 
 // ---- 7. 그로기 ----
@@ -426,12 +471,20 @@ function fresh(search, seed) {
   h.key('f');
   check(G, 'F → groggyAnim', h.getState() === 'groggyAnim');
   check(G, '버튼 숨김', h.els.groggy.classList.contains('hidden'));
-  h.run(1.0);
+  // 연출 네 장면이 차례로: 고양이 → 폭발 → 눈 클로즈업 → 구속 (2026-11-22, 2.0 → 2.8초)
+  h.run(0.3);
+  check(G, '연출 0.3초: 고양이 장면', h.groggyPhase() === 'cat', h.groggyPhase());
+  h.run(0.5);
+  check(G, '연출 0.8초: 폭발 장면', h.groggyPhase() === 'burst', h.groggyPhase());
+  h.run(0.4);
+  check(G, '연출 1.2초: 눈 클로즈업 장면', h.groggyPhase() === 'eyes', h.groggyPhase());
   check(G, '연출 중 시계 멈춤', g.clock === clk);
-  check(G, '1초 뒤 아직 연출', h.getState() === 'groggyAnim');
+  check(G, '1초 넘어도 아직 연출', h.getState() === 'groggyAnim');
+  h.run(1.0);
+  check(G, '연출 2.2초: 구속 장면', h.groggyPhase() === 'bind', h.groggyPhase());
   var bhp = g.boss.hp;
-  h.run(1.1);
-  check(G, '2초 뒤 fight 로', h.getState() === 'fight');
+  h.run(h.consts.GROGGY_ANIM - 2.2 + 0.1);
+  check(G, '연출 2.8초가 끝나면 fight 로', h.getState() === 'fight' && h.consts.GROGGY_ANIM === 2.8, [h.getState(), h.consts.GROGGY_ANIM]);
   check(G, '무력화 8초 시작 (틱 오차 안)', near(g.groggy, h.consts.GROGGY_TIME, 0.15), g.groggy);
   check(G, '보스 stunned', g.boss.phase === 'stunned');
   check(G, '그로기 액션 대미지', g.boss.hp < bhp);
@@ -458,7 +511,7 @@ function fresh(search, seed) {
     h = fresh('', 81 + i);
     var g = h.getGame();
     g.clock = times[i];
-    g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99;
+    g.boss.phase = 'wait'; g.boss.attack = null; g.boss.t = 99; g.boss.still = true;
     g.boss.hp = 5; g.player.x = 60; g.player.y = 0; g.attackCd = 0;
     h.key('a');
     check(G, '판 ' + (i + 1) + ' 격파 성공', h.getState() === 'result' && h.els['result-title'].textContent === '격파 성공');
@@ -472,7 +525,7 @@ function fresh(search, seed) {
   check(G, '결과에 궁극 횟수', h.els['result-reason'].textContent.indexOf('궁극 스킬 쓴 횟수') >= 0, h.els['result-reason'].textContent);
   // 5위 밖 성공
   h = fresh('', 99); var g9 = h.getGame();
-  g9.clock = 170; g9.boss.phase = 'wait'; g9.boss.attack = null; g9.boss.t = 99; g9.boss.hp = 5; g9.player.x = 60; g9.player.y = 0;
+  g9.clock = 170; g9.boss.phase = 'wait'; g9.boss.attack = null; g9.boss.t = 99; g9.boss.still = true; g9.boss.hp = 5; g9.player.x = 60; g9.player.y = 0;
   h.key('a');
   rows = h.els['rank-table'].children;
   check(G, '5위 밖이면 빛나는 줄 없음 + 안내 줄', rows.length === 6 && rows.every(function (r) { return r.className !== 'me'; }) && rows[5].innerHTML.indexOf('5위 안에') >= 0);
@@ -484,7 +537,7 @@ function fresh(search, seed) {
   check(G, '?test 는 게이지 찬 채로 시작', ht.getGame().counters === ht.consts.GROGGY_NEED);
   ht.run(3.1);
   check(G, '?test 는 싸움 시작 즉시 groggyWait', ht.getState() === 'groggyWait', ht.getState());
-  ht.key('f'); ht.run(2.1);
+  ht.key('f'); ht.run(ht.consts.GROGGY_ANIM + 0.1);
   var gt = ht.getGame();
   gt.clock = 10; gt.boss.hp = 5; gt.player.x = 60; gt.player.y = 0; gt.attackCd = 0;
   ht.key('a');
@@ -505,7 +558,8 @@ function fresh(search, seed) {
   try { h.run(h.consts.TELEGRAPH + 0.05); h.draw(); check(G, 'active 그리기', h.getGame().boss.phase === 'active', h.getGame().boss.phase); } catch (e) { check(G, 'active 그리기', false, e.message); }
   var g = h.getGame();
   try { g.counters = 10; g.boss.phase = 'telegraph'; untilTelegraph(h, 'yellow'); var a = g.boss.attack; g.player.x = a.ox + a.dir.x * 60; g.player.y = a.oy + a.dir.y * 60; h.key('Shift'); h.draw(); check(G, 'groggyWait + zoom 그리기', h.getState() === 'groggyWait', h.getState()); } catch (e) { check(G, 'groggyWait 그리기', false, e.message); }
-  try { h.run(0.5); h.key('f'); h.run(1); h.draw(); check(G, 'groggyAnim 그리기', true); } catch (e) { check(G, 'groggyAnim 그리기', false, e.message); }
+  try { h.run(0.5); h.key('f'); h.run(0.3); h.draw(); h.run(0.6); h.draw(); check(G, 'groggyAnim 그리기 (고양이, 폭발)', true); } catch (e) { check(G, 'groggyAnim 그리기', false, e.message); }
+  try { h.run(0.3); h.draw(); check(G, '눈 클로즈업 그리기', h.groggyPhase() === 'eyes', h.groggyPhase()); h.run(1.0); h.draw(); check(G, '구속 그리기', h.groggyPhase() === 'bind', h.groggyPhase()); } catch (e) { check(G, '눈 클로즈업·구속 그리기', false, e.message); }
   try { h.run(1.2); h.draw(); check(G, 'stunned 그리기', g.boss.phase === 'stunned'); } catch (e) { check(G, 'stunned 그리기', false, e.message); }
   // 마름모와 바닥 범위는 전조 시작부터 함께 뜬다 (2026-11-22: 마지막 0.4초만 범위 → 마름모만 보고 반격하게 되어 다시 함께, 0.65초)
   var hv = fresh('', 77);
@@ -561,16 +615,19 @@ console.log('묶음별: ' + Object.keys(groups).map(function (k) { return k + ' 
 
 // ---- 봇 시뮬레이션: 2분 언저리인가 ----
 if (process.argv[3] === 'sim') {
-  function sim(seed, skill) {
+  // walk: 반격하지 못한 전조에서는 남은 시간 동안 보스 반대쪽으로 걸어 나간다 (2026-11-22 일하는 규칙 3번: 걸어서 피하는 봇)
+  function sim(seed, skill, walk) {
     var h = fresh('', seed); var g = h.getGame(); var dt = 1 / 60; var t = 0; var lastTele = null;
-    var hits = 0, counters = 0;
+    var hits = 0, counters = 0, flee = 0;
     while (h.getState() !== 'result' && t < 400) {
       if (h.getState() === 'groggyWait') h.key('f');
       if (h.getState() === 'fight') {
         var b = g.boss, d = Math.hypot(g.player.x - b.x, g.player.y - b.y);
         var c = g.chars[g.cur];
-        // 보스 쪽으로 다가감 (한 번에 전부)
-        if (d > 70 && !g.dodge) { var k = (d - 65) / d; g.player.x += (b.x - g.player.x) * Math.min(1, 170 * dt / (d - 65 || 1)); g.player.y += (b.y - g.player.y) * Math.min(1, 170 * dt / (d - 65 || 1)); }
+        // 걸어서 피하는 중이면 보스 반대쪽으로 (스킬로 멈춰 있으면 못 걷는다)
+        if (flee > 0) { flee -= dt; if (g.lock <= 0 && d > 0.01) { g.player.x = Math.max(-186, Math.min(186, g.player.x + (g.player.x - b.x) / d * 170 * dt)); g.player.y = Math.max(-186, Math.min(186, g.player.y + (g.player.y - b.y) / d * 170 * dt)); } }
+        // 보스 쪽으로 다가감 (한 번에 전부). 스킬로 멈춰 있으면 안 움직인다
+        else if (d > 70 && !g.dodge && g.lock <= 0) { var k = (d - 65) / d; g.player.x += (b.x - g.player.x) * Math.min(1, 170 * dt / (d - 65 || 1)); g.player.y += (b.y - g.player.y) * Math.min(1, 170 * dt / (d - 65 || 1)); }
         if (b.phase === 'telegraph' && b.attack && b.attack !== lastTele) {
           // 전조 시작 뒤 0.2초쯤에 반응. 성공 확률 skill
           if (b.t < h.consts.TELEGRAPH - 0.2) {
@@ -581,7 +638,7 @@ if (process.argv[3] === 'sim') {
               if (canTag && Math.random() < 0.5) { var c0 = g.counters; h.key(' '); if (g.counters > c0) counters++; }
               else if (inside && g.dodgeCd <= 0) { var c1 = g.counters; h.key('Shift'); if (g.counters > c1) counters++; }
               else if (g.dodgeCd <= 0) h.key('Shift');
-            }
+            } else if (walk) flee = b.t + 0.05;
           }
         }
         if (b.phase !== 'telegraph') lastTele = null;
@@ -596,11 +653,11 @@ if (process.argv[3] === 'sim') {
     }
     return { win: g.result && g.result.win, clock: g.clock, real: t, hits: hits, counters: counters, ults: g.ultCount.slice() };
   }
-  [0.9, 0.7, 0.5].forEach(function (skill) {
-    var res = [];
-    for (var s = 0; s < 8; s++) res.push(sim(1000 + s * 7, skill));
+  [[0.9], [0.7], [0.5], [0.3], [0.3, true], [0, true]].forEach(function (cfg) {
+    var skill = cfg[0], res = [];
+    for (var s = 0; s < 8; s++) res.push(sim(1000 + s * 7, skill, cfg[1]));
     var wins = res.filter(function (r) { return r.win; });
     var avg = wins.length ? wins.reduce(function (a, r) { return a + r.clock; }, 0) / wins.length : 0;
-    console.log('반응 성공률 ' + skill + ': 8판 중 성공 ' + wins.length + ', 성공 판 평균 클리어 ' + avg.toFixed(1) + '초, 클리어들 ' + wins.map(function (r) { return r.clock.toFixed(0); }).join('/') + ', 맞은 횟수 평균 ' + (res.reduce(function (a, r) { return a + r.hits; }, 0) / res.length).toFixed(1) + ', 반격 평균 ' + (res.reduce(function (a, r) { return a + r.counters; }, 0) / res.length).toFixed(1) + ', 궁극 평균 ' + (res.reduce(function (a, r) { return a + r.ults.reduce(function (x, y) { return x + y; }, 0); }, 0) / res.length).toFixed(1) + ', 실제 시간 평균 ' + (res.reduce(function (a, r) { return a + r.real; }, 0) / res.length).toFixed(0) + '초');
+    console.log('반응 성공률 ' + skill + (cfg[1] ? ' + 걸어서 피함' : '') + ': 8판 중 성공 ' + wins.length + ', 성공 판 평균 클리어 ' + avg.toFixed(1) + '초, 클리어들 ' + wins.map(function (r) { return r.clock.toFixed(0); }).join('/') + ', 맞은 횟수 평균 ' + (res.reduce(function (a, r) { return a + r.hits; }, 0) / res.length).toFixed(1) + ', 반격 평균 ' + (res.reduce(function (a, r) { return a + r.counters; }, 0) / res.length).toFixed(1) + ', 궁극 평균 ' + (res.reduce(function (a, r) { return a + r.ults.reduce(function (x, y) { return x + y; }, 0); }, 0) / res.length).toFixed(1) + ', 실제 시간 평균 ' + (res.reduce(function (a, r) { return a + r.real; }, 0) / res.length).toFixed(0) + '초');
   });
 }
