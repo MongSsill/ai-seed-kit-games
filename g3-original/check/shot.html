@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#000}</style></head><body>
+<!-- 검사용 장면 찍기: shot.html?scene=이름. 화면 없는 크롬으로 찍는다 -->
+<canvas id="game" width="960" height="544"></canvas>
+<script>window.G3_TEST = true; window.G3_SHOT = true;</script>
+<script src="../game.js"></script>
+<script>
+(function () {
+  var g3 = window.G3, TS = g3.TS, sc = (location.search.match(/scene=([^&]+)/) || [])[1] || 'a';
+  function sim(s) { for (var i = 0; i < Math.round(s * 60); i++) g3.update(1 / 60); }
+  function put(col, row) { var p = g3.P; p.x = col * TS + 4; p.y = (row + 1) * TS - p.h; p.vx = 0; p.vy = 0; g3.G.cam = Math.max(0, p.x - 400); }
+  if (sc === 'gap') { g3.startLevel(0, { test: true }); put(25, 13); g3.press('right'); sim(0.35); g3.press('jump'); sim(0.25); g3.tag(1); sim(0.25); }
+  if (sc === 'wall' || sc === 'wall-ground') {
+    g3.startLevel(0, { test: true }); put(63, 13);
+    g3.press('up'); g3.tag(1); sim(0.45); g3.release('up');
+    if (sc === 'wall') { g3.press('jump'); sim(0.2); }
+    else if (!g3.P.onGround) throw new Error('Expected blue to stand on the ice pillar');
+  }
+  if (sc === 'perfect') { g3.startLevel(1, { test: true }); put(29, 13); g3.P.char = 1; g3.P.face = 1; g3.G.enemies.forEach(function (e) { if (e.type === 'g' && e.x < 40 * TS) { e.x = 32 * TS; } }); g3.tag(0); var t = 0; while (!g3.G.perfect && t < 40) { g3.update(1 / 60); t++; } sim(0.05); g3.tag(2); sim(0.08); }
+  if (sc === 'l3') { g3.startLevel(2, { test: true }); put(31, 6); sim(0.1); }
+  if (sc === 'l4') { g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; sim(0.1); }
+  if (sc === 'ult') { g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; g3.press('ult'); sim(0.8); }
+  if (sc === 'dash') { g3.startLevel(0, { test: true }); put(44, 13); g3.P.char = 1; g3.P.face = 1; g3.tag(0); sim(0.12); }
+  if (sc === 'atk') { g3.startLevel(1, { test: true }); put(31, 13); g3.P.face = 1; g3.press('form'); g3.update(1/60); g3.release('form'); g3.tag(1); sim(0.15); }
+  if (sc === 'boss') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(2.4); }
+  if (sc === 'boss2') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(3.3); }
+  setTimeout(function () { for (var i = 0; i < 30; i++) g3.draw(); }, 400);
+})();
+</script></body></html>

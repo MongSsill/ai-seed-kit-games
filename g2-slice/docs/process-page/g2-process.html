@@ -65,17 +65,27 @@ a:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-of
   gap: 10px;
 }
 .lead strong { color: var(--gold); font-weight: 700; }
-.btns { display: flex; flex-wrap: wrap; gap: 12px; }
+/* 바로가기: 플레이 화면 아래 가운데에 버튼 둘만. 게임 해 보기는 금빛 석판, 저장소는 돌 석판. 올리면 떠오르고 누르면 눌림 */
+.go { display: flex; justify-content: center; padding-block: 12px 4px; }
+.go .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
 .btn {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 11px 22px; text-decoration: none;
-  font-weight: 700; letter-spacing: 0.08em; color: var(--gold);
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 0 22px; text-decoration: none;
+  font-weight: 700; font-size: 0.98rem; letter-spacing: 0.04em; color: var(--gold);
   background: linear-gradient(#4a4c5a, #2c2e38);
   border: 2px solid var(--edge); border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 0 #0c0d12, 0 6px 12px rgba(0, 0, 0, 0.45);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, color .12s ease;
 }
-.btn:hover { border-color: var(--rune); color: #fff3b0; box-shadow: 0 0 14px rgba(77, 208, 225, 0.5), 0 4px 10px rgba(0, 0, 0, 0.5); }
-.btn .gem { width: 8px; height: 8px; background: var(--rune); transform: rotate(45deg); box-shadow: 0 0 8px var(--rune); }
+.btn svg { width: 16px; height: 16px; flex: none; color: var(--rune); }
+.btn:hover { transform: translateY(-2px); border-color: var(--rune); color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 5px 0 #0c0d12, 0 0 16px rgba(77, 208, 225, 0.45); }
+.btn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 #0c0d12; }
+.btn.primary { color: #2a1d00; background: linear-gradient(#ffe082, #f5b82e); border-color: #b8860b; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.btn.primary svg { color: #2a1d00; }
+.btn.primary:hover { color: #1a1200; border-color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 5px 0 #6b4e00, 0 0 18px rgba(255, 213, 79, 0.5); }
+.btn.primary:active { box-shadow: 0 1px 0 #6b4e00; }
+@media (max-width: 560px) { .go .btns, .go .btn { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover, .btn:active { transform: none; } }
 
 /* 플레이 화면 */
 .shots { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
@@ -184,9 +194,6 @@ tr:last-child td { border-bottom: 0; }
       <p>몬길: 스타다이브의 보스전 핵심인 <strong>태그 반격</strong>을 3분 분량의 한 판으로 재구성했습니다.</p>
       <p>이 페이지는 게임 자체보다 <strong>AI와 함께 일한 방식</strong>에 초점을 둡니다. 사람과 AI의 역할을 어떻게 나누었는지, 문제를 어떻게 정의하고 나누었는지, 시행착오를 거치며 AI 활용 방식을 어떻게 발전시켰는지를 정리했습니다.</p>
     </div>
-    <div class="btns">
-      <a class="btn" href="https://mongssill.github.io/ai-seed-kit-games/g2-slice/" target="_blank" rel="noopener"><span class="gem"></span>게임 해 보기</a>
-    </div>
     <div class="shots">
       <figure>
         <div class="frame"><img src="img/g2-telegraph.png" alt="보스 골렘 위에 노란 마름모 전조가 뜨고 바닥에 공격 범위 원이 그려진 싸움 화면" width="720" height="480"></div>
@@ -209,6 +216,14 @@ tr:last-child td { border-bottom: 0; }
       <figure><div class="frame"><img src="img/g2-groggy-wait.png" alt="하늘색 회오리와 둥근 F 버튼이 뜬 그로기 대기 화면" width="720" height="480" loading="lazy"></div><figcaption>그로기 발동 대기</figcaption></figure>
       <figure><div class="frame"><img src="img/g2-silhouette.png" alt="골렘 뒤에 선 초록 캐릭터가 하늘색 실루엣으로 비쳐 보이는 화면" width="720" height="480" loading="lazy"></div><figcaption>보스 뒤 캐릭터 실루엣</figcaption></figure>
     </div>
+    <nav class="go" aria-label="바로가기">
+      <div class="btns">
+        <a class="btn primary" href="https://mongssill.github.io/ai-seed-kit-games/g2-slice/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>게임 해 보기</a>
+        <a class="btn" href="https://github.com/MongSsill/ai-seed-kit-games/tree/main/g2-slice" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h4l1.5 1.5h5.5v8h-11z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>게임 2 폴더 (문서·작업 과정)</a>
+      </div>
+    </nav>
   </header>
 
   <section class="slab" aria-labelledby="s-roles">

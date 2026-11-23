@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>g3check</title></head>
+<body>
+<!-- 게임 3 브라우저 없는 검사. 크롬을 화면 없이 띄워 이 파일을 열고 out 의 글을 읽는다 (check/run.sh) -->
+<canvas id="game" width="960" height="544"></canvas>
+<div id="title"></div><button id="title-start"></button>
+<div id="select"><button id="st-0"></button><button id="st-1"></button><button id="st-2"></button><button id="st-3"></button><button id="st-4"></button></div>
+<div id="pause"><button id="pause-resume"></button><button id="pause-restart"></button><button id="pause-list"></button></div>
+<div id="clear"><h2 id="clear-title"></h2><div id="clear-stars"></div><div id="clear-info"></div><button id="clear-next"></button><button id="clear-list"></button></div>
+<div id="gameclear"><div id="gc-stars"></div><div id="gc-info"></div><button id="gc-list"></button><button id="gc-title"></button></div>
+<pre id="out">running</pre>
+<script>window.G3_TEST = true;</script>
+<script src="../game.js"></script>
+<script src="./g3check.js"></script>
+</body></html>
