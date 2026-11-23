@@ -10,6 +10,7 @@
 ## 폴더
 - g1-copy/ g2-slice/ g3-original/ 게임 셋. 게임 파일과 그 게임의 docs/ 가 들어 있다
 - logs/ 하루 한 장 실험 로그 · docs/decisions.md 결정 기록 · templates/ 문서 양식
+- 멈추기·설정·시작 화면 메뉴 같은 게임 밖 편의 기능은 templates/ 에 원본을 두고, 게임마다 복사해 따로 고쳐 쓴다
 - STATE.md 지금 게임과 단계 · LESSONS.md 배운 것 장부와 고친 이력 · ASSIGNMENT.md 과제 · ENGINES.md 엔진 고르기 · HOWTO.md 쓰는 법
 - 역할: reviewer (만든 과정을 못 본 눈. "reviewer로 검토해 줘"라고 부른다)
 - 명령: /start 시작 · /end 끝 · /retro 회고
