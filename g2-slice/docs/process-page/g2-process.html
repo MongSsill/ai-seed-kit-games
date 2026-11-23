@@ -1,0 +1,492 @@
+<title>태그 보스전 작업 방식</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 레이아웃: 사원 돌판 위에 하늘색 룬 선으로 이은 세로 기록. 게임 화면(돌, 금빛 글자, 룬빛)을 그대로 가져온 한 가지 어두운 모습.
+   큰 제목 하나만 장식 글씨체, 나머지 제목은 읽기 쉬운 본문 글씨체의 굵은 두께 (2026-11-24 "도트"의 ㅌ 이 뭉개 보인다는 지적) */
+:root {
+  --stone-0: #15161d;   /* 바닥 */
+  --stone-1: #1f212b;   /* 판 */
+  --stone-2: #2c2e3a;   /* 판 테두리 안 */
+  --edge: #5d5b6c;      /* 돌 테두리 */
+  --text: #ece8f2;
+  --muted: #a6a1b5;
+  --gold: #ffd54f;      /* 금빛 글자 (게임 버튼) */
+  --rune: #4dd0e1;      /* 하늘색 룬 */
+  --ember: #ff7a45;
+  --ok: #8bd88f;
+  --font-display: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  --font-head: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--stone-0);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+  word-break: keep-all;          /* 한국어를 낱말 단위로 줄바꿈 */
+  overflow-wrap: break-word;
+}
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 0 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.15; letter-spacing: 0.02em; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 22px rgba(255, 213, 79, 0.25); }
+h2 { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.45rem, 3.4vw, 1.95rem); line-height: 1.3; letter-spacing: -0.01em; }
+h3 { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; line-height: 1.4; }
+p { margin: 0; }
+a { color: var(--rune); }
+a:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 0.86em; color: var(--rune); }
+.muted { color: var(--muted); }
+
+/* 머리 */
+.hero { padding-block: 48px 28px; display: grid; gap: 22px; }
+.eyebrow { font-size: 0.82rem; letter-spacing: 0.16em; color: var(--rune); }
+.lead {
+  max-width: 46em;
+  padding: 18px 22px;
+  font-size: clamp(1.05rem, 2.2vw, 1.22rem);
+  line-height: 1.75;
+  color: var(--text);
+  background: linear-gradient(90deg, rgba(77, 208, 225, 0.09), rgba(77, 208, 225, 0));
+  border-left: 3px solid var(--rune);
+  display: grid;
+  gap: 10px;
+}
+.lead strong { color: var(--gold); font-weight: 700; }
+.btns { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 11px 22px; text-decoration: none;
+  font-weight: 700; letter-spacing: 0.08em; color: var(--gold);
+  background: linear-gradient(#4a4c5a, #2c2e38);
+  border: 2px solid var(--edge); border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+.btn:hover { border-color: var(--rune); color: #fff3b0; box-shadow: 0 0 14px rgba(77, 208, 225, 0.5), 0 4px 10px rgba(0, 0, 0, 0.5); }
+.btn .gem { width: 8px; height: 8px; background: var(--rune); transform: rotate(45deg); box-shadow: 0 0 8px var(--rune); }
+
+/* 플레이 화면 */
+.shots { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.shots .side { display: grid; gap: 12px; }
+figure { margin: 0; min-width: 0; }
+.frame { position: relative; border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 0 18px rgba(77, 208, 225, 0.18), 0 8px 20px rgba(0, 0, 0, 0.6); background: var(--stone-1); }
+.frame img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; max-width: 100%; }
+figcaption { font-size: 0.84rem; color: var(--muted); padding-top: 6px; line-height: 1.5; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+/* 판 (섹션) */
+.slab { position: relative; margin-top: 56px; padding: 28px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--stone-1), #191a22); border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 10px 26px rgba(0, 0, 0, 0.55); display: grid; gap: 20px; }
+.slab::before, .slab::after { content: ""; position: absolute; top: -9px; width: 12px; height: 12px; background: var(--rune); border: 2px solid var(--stone-0); transform: rotate(45deg); box-shadow: 0 0 10px var(--rune); }
+.slab::before { left: -9px; }
+.slab::after { right: -9px; }
+.slab-head { display: grid; gap: 8px; }
+.skill { display: inline-flex; align-self: start; justify-self: start; font-size: 0.78rem; letter-spacing: 0.08em; color: var(--stone-0); background: var(--rune); padding: 3px 10px; border-radius: 2px; font-weight: 700; }
+.slab-head p { max-width: 46em; color: var(--muted); }
+
+/* 역할 */
+.roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.role { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.role .who { font-weight: 700; font-size: 1.08rem; }
+.role.me .who { color: var(--gold); }
+.role.ai .who { color: var(--rune); }
+.role.rv .who { color: #c9b5ff; }
+.role.ck .who { color: var(--ok); }
+.role ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
+.loop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.95rem; }
+.loop .step { padding: 6px 12px; border: 1px solid var(--edge); border-radius: 2px; background: #23252f; }
+.loop .arrow { color: var(--rune); }
+
+/* 단계 */
+.track { display: grid; }
+.stage { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px dashed #3d3f4d; }
+.stage:first-child { border-top: 0; }
+.stage .tag { font-weight: 700; font-size: 1.05rem; color: var(--gold); line-height: 1.3; }
+.stage .tag small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
+.stage p { max-width: 46em; }
+.chain { display: grid; gap: 6px; padding: 14px 16px; background: #1a1b23; border-left: 3px solid var(--rune); }
+.chain .t { font-size: 0.82rem; color: var(--muted); }
+.chain div { font-size: 0.93rem; }
+.chain q { color: var(--gold); quotes: "“" "”"; }
+
+/* 변화 */
+.shift { display: grid; gap: 12px; }
+.change { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.change .before, .change .after { padding: 14px 16px; border-radius: 3px; min-width: 0; }
+.change .before { background: #241f24; border: 1px solid #4a3a3f; }
+.change .after { background: #1b2629; border: 1px solid #2f5960; }
+.change .lbl { font-size: 0.74rem; letter-spacing: 0.1em; color: var(--muted); display: block; margin-bottom: 4px; }
+.change h3 { margin-bottom: 4px; }
+.change .mid { display: grid; place-items: center; color: var(--rune); font-size: 1.3rem; }
+.change p { font-size: 0.94rem; }
+
+/* 사례 */
+.scenes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.scene { padding: 18px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.scene .kind { font-size: 0.76rem; letter-spacing: 0.08em; font-weight: 700; }
+.scene .kind.co { color: var(--gold); }
+.scene .kind.auto { color: var(--rune); }
+.scene ol { margin: 0; padding-left: 1.2em; font-size: 0.93rem; display: grid; gap: 4px; }
+.scene q { color: var(--gold); quotes: "“" "”"; }
+.scene .src { font-size: 0.78rem; color: var(--muted); }
+.subhead { font-size: 1.12rem; margin-top: 4px; }
+
+/* 규칙 표 */
+.tablebox { overflow-x: auto; border: 1px solid #3d3f4d; border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid #33353f; }
+th { font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; background: #1b1c24; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.pill.good { background: rgba(139, 216, 143, 0.15); color: var(--ok); border: 1px solid rgba(139, 216, 143, 0.4); }
+.pill.bad { background: rgba(255, 122, 69, 0.14); color: var(--ember); border: 1px solid rgba(255, 122, 69, 0.45); }
+.pill.wait { background: rgba(166, 161, 181, 0.12); color: var(--muted); border: 1px solid rgba(166, 161, 181, 0.35); }
+
+/* 기여 */
+.split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.split .col { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.split ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
+.quote-me { padding: 12px 16px; border-left: 3px solid var(--gold); background: #1b1c24; }
+.next { display: grid; gap: 8px; padding-left: 1.3em; margin: 0; }
+.foot { margin-top: 40px; font-size: 0.82rem; color: var(--muted); max-width: 46em; }
+
+@media (max-width: 760px) {
+  .shots { grid-template-columns: 1fr; }
+  .shots .side { grid-template-columns: 1fr 1fr; }
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .roles { grid-template-columns: 1fr 1fr; }
+  .scenes, .split { grid-template-columns: 1fr; }
+  .change { grid-template-columns: 1fr; }
+  .change .mid { transform: rotate(90deg); height: 20px; }
+  .stage { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (max-width: 420px) { .roles { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">게임 2 · 큰 게임의 일부 · AI 협업 기록</span>
+    <h1>태그 보스전 작업 방식</h1>
+    <div class="lead">
+      <p>몬길: 스타다이브의 보스전 핵심인 <strong>태그 반격</strong>을 3분 분량의 한 판으로 재구성했습니다.</p>
+      <p>이 페이지는 게임 자체보다 <strong>AI와 함께 일한 방식</strong>에 초점을 둡니다. 사람과 AI의 역할을 어떻게 나누었는지, 문제를 어떻게 정의하고 나누었는지, 시행착오를 거치며 AI 활용 방식을 어떻게 발전시켰는지를 정리했습니다.</p>
+    </div>
+    <div class="btns">
+      <a class="btn" href="https://mongssill.github.io/ai-seed-kit-games/g2-slice/" target="_blank" rel="noopener"><span class="gem"></span>게임 해 보기</a>
+    </div>
+    <div class="shots">
+      <figure>
+        <div class="frame"><img src="img/g2-telegraph.png" alt="보스 골렘 위에 노란 마름모 전조가 뜨고 바닥에 공격 범위 원이 그려진 싸움 화면" width="720" height="480"></div>
+        <figcaption>노란 전조가 보이는 0.65초 안에 회피나 태그를 누르면 반격이 나갑니다.</figcaption>
+      </figure>
+      <div class="side">
+        <figure>
+          <div class="frame"><img src="img/g2-counter.png" alt="회피 반격 성공 순간 보스가 하얗게 번쩍이고 회피 반격 글자가 뜬 화면" width="720" height="480"></div>
+          <figcaption>회피 반격 성공</figcaption>
+        </figure>
+        <figure>
+          <div class="frame"><img src="img/g2-groggy.png" alt="그로기 연출에서 캐릭터 눈이 화면 가득 클로즈업된 장면" width="720" height="480"></div>
+          <figcaption>반격 10번이 모이면 그로기 연출</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="strip">
+      <figure><div class="frame"><img src="img/g2-red-special.png" alt="빨강 캐릭터 뒤에서 붉은 용이 불을 뿜는 특수 스킬" width="720" height="480" loading="lazy"></div><figcaption>플레아 특수 스킬: 용의 불</figcaption></figure>
+      <figure><div class="frame"><img src="img/g2-blue-special.png" alt="파랑 캐릭터 둘레에 얼음 설원이 깔리는 특수 스킬" width="720" height="480" loading="lazy"></div><figcaption>오필리아 특수 스킬: 설원</figcaption></figure>
+      <figure><div class="frame"><img src="img/g2-groggy-wait.png" alt="하늘색 회오리와 둥근 F 버튼이 뜬 그로기 대기 화면" width="720" height="480" loading="lazy"></div><figcaption>그로기 발동 대기</figcaption></figure>
+      <figure><div class="frame"><img src="img/g2-silhouette.png" alt="골렘 뒤에 선 초록 캐릭터가 하늘색 실루엣으로 비쳐 보이는 화면" width="720" height="480" loading="lazy"></div><figcaption>보스 뒤 캐릭터 실루엣</figcaption></figure>
+    </div>
+  </header>
+
+  <section class="slab" aria-labelledby="s-roles">
+    <div class="slab-head">
+      <span class="skill">AI 리더십</span>
+      <h2 id="s-roles">사람과 AI의 역할 설계</h2>
+      <p>코드 작성과 수정은 AI에게 맡기고, 무엇을 만들지와 완성 여부는 제가 판단했습니다. 그 사이에 AI가 스스로 수행하는 검토와 자동 검사를 두어 결과물을 이중으로 확인했습니다.</p>
+    </div>
+    <div class="roles">
+      <div class="role me">
+        <span class="who">나</span>
+        <ul>
+          <li>원작과 구현할 핵심 재미 선정</li>
+          <li>문제와 목표 정의</li>
+          <li>AI가 낸 후보 중 방향 결정</li>
+          <li>직접 플레이하며 개선점 도출</li>
+          <li>그래픽 준비와 플레이 테스트 진행</li>
+          <li>작업 규칙 승인</li>
+        </ul>
+      </div>
+      <div class="role ai">
+        <span class="who">Claude Code</span>
+        <ul>
+          <li>게임 코드 작성과 수정</li>
+          <li>선택지마다 추천안과 근거 제시</li>
+          <li>작업 표와 결정 기록 정리</li>
+          <li>사운드와 이펙트 구현</li>
+          <li>그래픽을 부위별로 나눠 애니메이션 적용</li>
+        </ul>
+      </div>
+      <div class="role rv">
+        <span class="who">reviewer</span>
+        <ul>
+          <li>작업 과정을 보지 않은 검토 전용 AI</li>
+          <li>저장 전에 문서와 코드를 독립적으로 점검</li>
+          <li>오래된 표현, 근거 없는 수치, 숨은 버그 발견</li>
+        </ul>
+      </div>
+      <div class="role ck">
+        <span class="who">자동 검사와 시뮬레이션</span>
+        <ul>
+          <li>수정할 때마다 실행되는 규칙 검사 (137개 → 281개)</li>
+          <li>봇 시뮬레이션으로 난이도 측정</li>
+          <li>브라우저로 실제 화면을 찍어 확인</li>
+        </ul>
+      </div>
+    </div>
+    <div class="loop" aria-label="하루 작업의 흐름">
+      <span class="step"><span class="mono">/start</span> 이전 작업 이어받기</span><span class="arrow">→</span>
+      <span class="step">작업 방향 합의</span><span class="arrow">→</span>
+      <span class="step">한 번에 하나씩 구현</span><span class="arrow">→</span>
+      <span class="step">직접 플레이로 확인</span><span class="arrow">→</span>
+      <span class="step"><span class="mono">/end</span> 검토 · 기록 · 저장</span><span class="arrow">→</span>
+      <span class="step"><span class="mono">/retro</span> 작업 규칙 개선</span>
+    </div>
+    <p class="muted">작업 규칙 파일(CLAUDE.md)과 세 가지 명령, reviewer 역할을 기반으로 일했습니다. 규칙 파일은 제 승인 없이 AI가 수정할 수 없습니다.</p>
+  </section>
+
+  <section class="slab" aria-labelledby="s-structure">
+    <div class="slab-head">
+      <span class="skill">구조화 능력</span>
+      <h2 id="s-structure">문제 정의와 단계별 분해</h2>
+      <p>단계마다 완료 기준을 정하고, 기준을 충족해야 다음 단계로 넘어갔습니다. 각 단계의 결과는 문서로 남겼습니다.</p>
+    </div>
+    <div class="track">
+      <div class="stage"><span class="tag">A<small>출발점</small></span><p>원작에서 구현할 재미의 한 조각을 고르고, 관찰한 것과 추정한 것을 구분해 정리했습니다 (<span class="mono">reverse.md</span>). 원작 정보는 기사와 위키로 확인된 것만 "확인"으로 표시했습니다.</p></div>
+      <div class="stage"><span class="tag">B<small>정의</small></span><p>상황·문제·목표를 직접 쓰고, AI와 함께 14줄의 완료 기준으로 다듬었습니다 (<span class="mono">problem.md</span>). reviewer 검토를 세 차례 거쳐 지적 사항 16개, 10개, 6개를 모두 반영하거나 결론을 냈습니다.</p></div>
+      <div class="stage"><span class="tag">C<small>분해</small></span><p>핵심 게임 루프를 한 문장으로 정리하고, 한 시간 안팎의 작업 8개로 나누었습니다 (<span class="mono">tasks.md</span>). 작업 목록은 완성 시점에 40개가 되었습니다.</p></div>
+      <div class="stage"><span class="tag">D–E<small>첫 판·배포</small></span><p>첫 판을 만들어 웹 링크로 배포하고, 다른 기기에서 열리는 것을 확인했습니다. 작업마다 그 시점의 판을 <span class="mono">steps/</span> 폴더에 보관해 36개의 기록이 남았습니다.</p></div>
+      <div class="stage"><span class="tag">F<small>다듬기</small></span><p>플레이 소감 하나를 작업 하나로 연결했습니다. 처음 해 보는 테스터 두 명이 설명 없이 한 판을 완주했습니다.</p></div>
+      <div class="stage"><span class="tag">G<small>정리</small></span><p>README를 작성하고, 회고를 통해 다음 게임의 발전 사항을 정했습니다.</p></div>
+    </div>
+    <div class="chain" aria-label="플레이 소감이 작업으로 이어진 예">
+      <span class="t">플레이 소감에서 작업으로 이어진 예</span>
+      <div><q>회피랑 태그가 가능한 시간이 생각보다 촉박</q> → 반격 가능 시간을 0.5초에서 0.8초로 조정</div>
+      <div><q>패턴을 보고 걸어서 피할 수 있을 정도</q> → 바닥의 공격 범위를 마지막 0.4초에만 표시</div>
+      <div>범위 표시 없이 마름모만 보고 반격하게 됨 → 0.65초로 맞추고 마름모와 범위를 함께 표시</div>
+      <div><q>마름모가 너무 조잡</q> → 마름모를 다시 그리고, 꽉 차는 순간을 공격 순간에 맞춤</div>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-shift">
+    <div class="slab-head">
+      <span class="skill">학습 실행력</span>
+      <h2 id="s-shift">AI 활용 방식의 변화</h2>
+      <p>같은 유형의 문제가 생기면 바로 기록하고, 두 번째부터는 일하는 방식 자체를 바꿨습니다.</p>
+    </div>
+    <div class="shift">
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>단일 봇 기준의 난이도 측정</h3><p>보스 바로 옆에서 쉬지 않고 공격하는 봇 하나로 클리어 시간을 맞췄습니다. 직접 해 보니 체감 난이도가 봇 결과와 크게 달랐습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>다양한 플레이 수준을 반영한 측정</h3><p>처음 하는 사람 수준(반응 성공률 0.3 이하)과 걸어서 피하는 플레이를 흉내 내는 봇을 함께 측정하도록 규칙을 정했습니다. 이후 난이도를 잘못 판단한 일은 없었습니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>AI가 코드로 직접 그린 그래픽</h3><p>캐릭터, 마름모, 스킬 이펙트, 아이콘을 AI가 좌표로 그렸습니다. 레퍼런스 수준의 퀄리티에 미치지 못해 여러 번 다시 작업했습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>그래픽은 사람이, 애니메이션은 AI가</h3><p>레퍼런스를 찾아 AI 이미지 도구로 캐릭터·보스·용을 직접 만들고, AI는 그림을 부위별로 나눠 관절 애니메이션을 붙였습니다. 회고에서 "AI가 그릴 그림이 사용자 그림 옆에 놓이면 먼저 사용자 그림을 받을지 묻는다"를 규칙으로 추가했습니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>같은 유형의 버그 반복</h3><p>캐릭터가 걷는 방향과 반대를 바라보는 버그가 여러 번 나왔습니다. AI가 그림의 원래 방향을 눈으로 짐작한 것이 원인이었습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>자동 검사로 재발 방지</h3><p>그림의 방향은 제가 확인한 값만 쓰게 하고, 그 값을 지키는 검사 10개를 넣었습니다. 잘못된 값으로 바뀌면 검사가 바로 실패합니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>게임마다 새로 만드는 편의 기능</h3><p>게임 1의 일시정지 기능은 게임 1 코드 안에만 있었습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>공용 원본을 두고 게임별로 수정</h3><p>직접 제안한 규칙입니다. 일시정지와 시작 화면 메뉴를 <span class="mono">templates/</span>에 원본으로 두고, 게임마다 복사해 각 게임에 맞게 고쳐 씁니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>한 번에 한 게임씩 진행</h3><p>게임 하나를 끝낸 뒤 다음 게임으로 넘어갔습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>두 작업 창에서 두 게임 병행</h3><p>게임 2를 다듬는 창과 게임 3을 기획하는 창을 함께 운영했습니다. 두 창이 같은 기록 파일을 다루므로, 저장할 때는 각자 맡은 게임의 내용만 골라 저장하도록 했습니다.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-scenes">
+    <div class="slab-head">
+      <span class="skill">협업과 자동화</span>
+      <h2 id="s-scenes">협업과 자동화 사례</h2>
+      <p>제가 판단하고 AI가 구현한 사례와, AI가 스스로 문제를 찾거나 자동으로 막아 낸 사례입니다. 인용은 작업 중 결정 기록에 남은 제 말입니다.</p>
+    </div>
+    <h3 class="subhead">사람과 AI의 협업 사례</h3>
+    <div class="scenes">
+      <article class="scene">
+        <span class="kind co">협업 · 그래픽</span>
+        <h3>그래픽 작업의 역할 재분배</h3>
+        <ol>
+          <li>AI가 그린 단순한 캐릭터 옆에 제가 만든 세밀한 보스가 놓여 그림체가 어울리지 않았습니다.</li>
+          <li>AI는 좌표로 그리는 방식으로는 레퍼런스만큼 세밀한 그림을 약속할 수 없다고 한계를 설명했습니다.</li>
+          <li><q>기다려봐. 내가 그림 줄게</q> 캐릭터 셋을 직접 만들어 전달했고, AI는 팔·다리·날개·꼬리를 나눠 걷기와 공격 동작을 붙였습니다.</li>
+        </ol>
+        <p class="src">결정 기록 · 배운 것 장부</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 판단</span>
+        <h3>보스에 가려지는 캐릭터 처리</h3>
+        <ol>
+          <li>reviewer가 크기를 계산해, 보스 뒤로 간 캐릭터가 보스 그림에 가려진다는 점을 찾았습니다.</li>
+          <li>바로 고치지 않고 직접 플레이해 본 뒤 판단하기로 작업 목록에 남겼습니다.</li>
+          <li>플레이 후 <q>뒤로 가면 반투명이 아니라 실루엣만 보이게</q> 처리하기로 정했고, AI가 구현했습니다.</li>
+        </ol>
+        <p class="src">작업 목록 · 결정 기록</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 사용자 경험</span>
+        <h3>플레이 테스트 기반 개선점 도출</h3>
+        <ol>
+          <li>20대 두 명에게 플레이 테스트를 요청했고, 두 명 모두 설명 없이 한 판을 완주했습니다.</li>
+          <li>다만 태그보다 회피를 훨씬 자주 사용했습니다. 태그의 이점이 게임 안에서 충분히 전달되지 않았다는 뜻입니다.</li>
+          <li>설명서를 추가하기보다, 다음 게임에서 레벨디자인으로 플레이어가 자연스럽게 익히도록 설계하기로 정했습니다.</li>
+        </ol>
+        <p class="src">플레이 메모 · 결정 기록</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 품질</span>
+        <h3>체감에 맞춘 사운드 재설계</h3>
+        <ol>
+          <li>처음 만든 효과음이 게임의 분위기에 비해 가볍게 느껴졌습니다.</li>
+          <li>캐릭터와 스킬의 성격에 맞춰 할퀴기, 불 뿜기처럼 장면을 떠올리게 하는 소리를 요청했습니다.</li>
+          <li>AI가 낮은 타격음과 걸러 낸 잡음으로 다시 만들었고, 직접 들어 보며 무게감을 한 번 더 조정했습니다.</li>
+        </ol>
+        <p class="src">작업 목록 · 결정 기록</p>
+      </article>
+    </div>
+    <h3 class="subhead">AI 자동화 사례</h3>
+    <div class="scenes">
+      <article class="scene">
+        <span class="kind auto">자동화 · 검사</span>
+        <h3>검수의 자동화</h3>
+        <ol>
+          <li>보스 패턴, 반격, 태그, 그로기, 메뉴까지 게임 규칙을 검사 코드로 옮겼습니다. 첫 판 137개에서 완성 시점 281개로 늘었습니다.</li>
+          <li>새 검사는 일부러 수정 전 코드에 돌려 실패하는 것을 확인한 뒤에 사용했습니다.</li>
+        </ol>
+        <p class="src">check/g2check.js</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">AI 자체 발견</span>
+        <h3>화면 확인을 통한 오류 발견</h3>
+        <ol>
+          <li>스킬 여섯 개를 만든 뒤 검사는 모두 통과했지만, AI가 스킬마다 실제 화면을 찍어 확인했습니다.</li>
+          <li>특정 스킬에서 화면이 멈추는 오류와, 점프 높이가 계산되지 않는 오류를 찾아 바로 고쳤습니다.</li>
+        </ol>
+        <p class="src">배운 것 장부</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">자동화 · reviewer</span>
+        <h3>AI를 통한 누락 사항 재확인</h3>
+        <ol>
+          <li>Shift를 누른 채 공격하면 공격이 멈추지 않던 입력 버그를 찾았습니다.</li>
+          <li>일시정지 중 Esc를 길게 누르면 바로 풀리던 버그를 찾아, 공용 메뉴 원본까지 함께 고쳤습니다.</li>
+        </ol>
+        <p class="src">배운 것 장부</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">AI 자체 대응</span>
+        <h3>작업 환경 제약에 대한 대응</h3>
+        <ol>
+          <li>검사를 실행하던 도구(node)가 작업 컴퓨터에 없었고, 설치도 권한 설정으로 막혀 있었습니다.</li>
+          <li>AI가 이미 설치된 크롬 브라우저 안에서 같은 검사를 실행하는 방법을 만들어 작업을 이어 갔습니다.</li>
+        </ol>
+        <p class="src">작업 목록</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-rules">
+    <div class="slab-head">
+      <span class="skill">배운 것을 규칙으로</span>
+      <h2 id="s-rules">규칙 변화 기록</h2>
+      <p>AI가 틀린 부분은 즉시 기록하고, 같은 유형이 두 번 나오면 규칙 한 줄을 제안받아 제가 승인한 것만 반영했습니다. 회고 때는 규칙을 넣은 뒤 같은 문제가 줄었는지 세어 효과를 판정했습니다.</p>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>반복된 문제</th><th>반영한 규칙</th><th>판정</th></tr></thead>
+        <tbody>
+          <tr><td>봇이 사람과 다르게 움직여 난이도를 잘못 판단</td><td>봇 측정값에 "봇 기준"을 표시하고, 초보자 수준과 걸어서 피하는 봇도 함께 측정</td><td><span class="pill good">효과 있음</span></td></tr>
+          <tr><td>문서에 바뀌기 전 내용이 남음</td><td>기획 문서가 바뀐 날에도 저장 전에 reviewer 검토를 제안</td><td><span class="pill good">효과 있음</span></td></tr>
+          <tr><td>AI가 그린 그림이 기대와 다름</td><td>기존 그림과 그림체를 비교하고, 다르면 미리 알림</td><td><span class="pill bad">효과 없음</span></td></tr>
+          <tr><td>위 규칙의 보완</td><td>AI가 그릴 그림이 사용자 그림 옆이면 먼저 사용자 그림을 받을지 질문</td><td><span class="pill wait">다음 회고에서 판정</span></td></tr>
+          <tr><td>편의 기능을 게임마다 새로 만듦 (직접 제안)</td><td>편의 기능은 <span class="mono">templates/</span> 원본을 복사해 게임별로 수정</td><td><span class="pill wait">다음 회고에서 판정</span></td></tr>
+          <tr><td>문서마다 같은 대상을 다른 단어로 부름 (직접 요청)</td><td>제 말을 문서에 옮길 때 기존 문서와 다른 단어를 찾아 보고</td><td><span class="pill wait">다음 회고에서 판정</span></td></tr>
+          <tr><td>캐릭터 방향 버그 반복</td><td>규칙 대신 자동 검사로 차단</td><td><span class="pill good">검사로 전환</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">효과가 없었던 규칙도 지우지 않고 남겼습니다. 미리 알리는 것만으로는 부족하다는 것을 확인했고, 그 결과가 다음 규칙으로 이어졌습니다.</p>
+  </section>
+
+  <section class="slab" aria-labelledby="s-who">
+    <div class="slab-head">
+      <span class="skill">기여 범위</span>
+      <h2 id="s-who">작업 범위와 기여</h2>
+    </div>
+    <div class="split">
+      <div class="col">
+        <h3>나</h3>
+        <ul>
+          <li>원작 분석과 핵심 재미 선정, 문제·목표 정의</li>
+          <li>모든 방향 결정과 직접 플레이 검수</li>
+          <li>작업 규칙 승인과 새 규칙 제안</li>
+          <li>플레이 테스트 진행과 피드백 정리</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Claude Code</h3>
+        <ul>
+          <li>게임 코드 전체, 자동 검사, 봇 시뮬레이션</li>
+          <li>사운드, 맵, 스킬 이펙트, 아이콘, 버튼 (코드로 구현)</li>
+          <li>선택지와 추천안 제시, 문서 정리, reviewer 검토</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>다른 AI 도구 (직접 사용)</h3>
+        <ul>
+          <li>캐릭터 셋: AI 이미지 도구로 직접 제작</li>
+          <li>보스와 스킬의 용: 레퍼런스를 찾아 CODEX로 직접 가공</li>
+          <li>원작의 그림과 소리는 사용하지 않았고, 캐릭터 이름만 원작에서 빌림</li>
+        </ul>
+      </div>
+    </div>
+    <div class="quote-me">
+      <p>게임의 전체적인 기획 및 이후 수정 및 자가 피드백. 피드백은 AI로 먼저 한 후, 직접 플레이하면서 다시 한 번 확인하는 재검수의 절차를 거쳤다.</p>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-next">
+    <div class="slab-head">
+      <span class="skill">다음 게임</span>
+      <h2 id="s-next">다음 게임에서의 발전 사항</h2>
+    </div>
+    <ol class="next">
+      <li>완결성이 있는 게임</li>
+      <li>튜토리얼 없이 자연스러운 레벨디자인을 구현하여 플레이어가 스스로 시스템을 익힐 수 있도록 개선한다</li>
+      <li>그래픽 퀄리티 상승</li>
+    </ol>
+    <p class="muted">이번 게임에서 새로 할 수 있게 된 것: 보다 복잡한 시스템 구현 및 핵심 재미 요소 확인</p>
+  </section>
+
+  <p class="foot">원작은 몬길: 스타다이브 (개발 넷마블몬스터, 배급 넷마블)입니다. 이 게임은 개인 학습용으로 만들었으며 원작의 그림과 소리는 사용하지 않았습니다. 위 화면은 실제 게임을 실행해 찍은 장면입니다. PC 키보드로 플레이합니다.</p>
+</div>
