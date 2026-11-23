@@ -762,6 +762,14 @@ function fresh(search, seed) {
   try { h.run(0.5); h.key('f'); h.run(0.3); h.draw(); h.run(0.6); h.draw(); check(G, 'groggyAnim 그리기 (고양이, 폭발)', true); } catch (e) { check(G, 'groggyAnim 그리기', false, e.message); }
   try { h.run(0.3); h.draw(); check(G, '눈 클로즈업 그리기', h.groggyPhase() === 'eyes', h.groggyPhase()); h.run(1.0); h.draw(); check(G, '구속 그리기', h.groggyPhase() === 'bind', h.groggyPhase()); } catch (e) { check(G, '눈 클로즈업·구속 그리기', false, e.message); }
   try { h.run(1.2); h.draw(); check(G, 'stunned 그리기', g.boss.phase === 'stunned'); } catch (e) { check(G, 'stunned 그리기', false, e.message); }
+  // 골렘 뒤 실루엣 (2026-11-24 작업 23): 캐릭터가 골렘 뒤·앞일 때 그리기가 터지지 않고, 실루엣 그리기가 끝나면 원래 화면으로 돌아온다.
+  // 여기서는 골렘 그림이 없어 실루엣 자체는 그려지지 않는다 (진짜 크롬에서 뒤 1번·앞 0번을 따로 확인)
+  try {
+    var hs = fresh('', 5); hs.run(0.5); var gs = hs.getGame();
+    gs.player.x = gs.boss.x - 30; gs.player.y = gs.boss.y - 30; hs.draw();
+    gs.player.x = gs.boss.x + 50; gs.player.y = gs.boss.y + 50; hs.draw();
+    check(G, '골렘 뒤·앞 그리기 (실루엣)', hs.silPassing() === false, hs.silPassing());
+  } catch (e) { check(G, '골렘 뒤·앞 그리기 (실루엣)', false, e.message); }
   // 마름모와 바닥 범위는 전조 시작부터 함께 뜬다 (2026-11-22: 마지막 0.4초만 범위 → 마름모만 보고 반격하게 되어 다시 함께, 0.65초)
   var hv = fresh('', 77);
   untilTelegraph(hv);

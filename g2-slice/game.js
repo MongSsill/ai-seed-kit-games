@@ -2328,6 +2328,28 @@
         ctx.save(); ctx.globalAlpha = 0.35 * b.trail[ti].life / 0.3; ctx.translate(tp.x, tp.y); if (b.faceRight) ctx.scale(-1, 1);
         ctx.drawImage(BOSS_IMG.img, -ww * BOSS_ANCHOR_X, -hh, ww, hh); ctx.restore();
       }
+      lastGolem = { b: b, base: base, hh: hh, ww: ww, stunned: stunned };
+      drawGolemBody(b, base, hh, ww, stunned);
+    } else {
+      lastGolem = null;
+      drawPillar(b.x, b.y, BOSS_R, stunned ? BOSS_H * 0.7 : h, b.flash > 0 ? '#ffffff' : stunned ? '#5e35b1' : '#8e24aa');
+    }
+    if (stunned) {
+      var top = project(b.x, b.y, BOSS_H);
+      ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('무력화 ' + game.groggy.toFixed(1), top.x, top.y);
+    }
+    if (state === 'groggyAnim') drawGroggyWorld();
+    if (state === 'intro') {
+      var s = project(b.x, b.y, BOSS_H + 30);
+      ctx.fillStyle = '#ffd54f';
+      ctx.font = 'bold 26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('보스 등장', s.x, s.y - 20 * Math.sin(game.stateT * 3));
+    }
+  }
+  // 골렘 몸만 그린다 (그림자·잔상·글자 없이). 실루엣의 틀로도 쓴다
+  function drawGolemBody(b, base, hh, ww, stunned) {
       ctx.save();
       if (BOSS_RIG && state !== 'intro') {
         // 팔다리를 따로 움직인다: 발을 축으로 캐릭터 쪽 기울기 → 뒤집기·눌림 → 그림 좌표에서 부위마다 관절 돌리기
@@ -2344,22 +2366,37 @@
         ctx.drawImage(b.flash > 0 ? BOSS_IMG.white : stunned ? BOSS_IMG.stun : BOSS_IMG.img, -ww * BOSS_ANCHOR_X, -hh, ww, hh);
       }
       ctx.restore();
-    } else {
-      drawPillar(b.x, b.y, BOSS_R, stunned ? BOSS_H * 0.7 : h, b.flash > 0 ? '#ffffff' : stunned ? '#5e35b1' : '#8e24aa');
-    }
-    if (stunned) {
-      var top = project(b.x, b.y, BOSS_H);
-      ctx.fillStyle = '#ffd54f'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('무력화 ' + game.groggy.toFixed(1), top.x, top.y);
-    }
-    if (state === 'groggyAnim') drawGroggyWorld();
-    if (state === 'intro') {
-      var s = project(b.x, b.y, BOSS_H + 30);
-      ctx.fillStyle = '#ffd54f';
-      ctx.font = 'bold 26px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('보스 등장', s.x, s.y - 20 * Math.sin(game.stateT * 3));
-    }
+  }
+  // 골렘 뒤 캐릭터 실루엣 (2026-11-24 작업 23, 사용자가 (가) 고름: "뒤로 가면 반투명이 아니라 실루엣만 보이게").
+  // 캐릭터가 골렘 뒤에 있으면, 골렘 그림에 가려진 부분만 캐릭터 모양의 하늘색 단색으로 골렘 위에 겹쳐 그린다.
+  // 그리는 순서만 바뀌고 판정은 그대로. 따로 만든 화면에 캐릭터를 그려 색을 입히고 골렘 모양으로 잘라 얹는다
+  var lastGolem = null, SIL_CV = null, SIL_MASK = null, silPass = false, silCount = 0;
+  var SIL_COLOR = 'rgba(77, 208, 225, 1)', SIL_ALPHA = 0.55;
+  function silCanvas(cv) {
+    if (!cv) cv = document.createElement('canvas');
+    if (cv.width !== canvas.width || cv.height !== canvas.height) { cv.width = canvas.width; cv.height = canvas.height; }
+    var x = cv.getContext && cv.getContext('2d');
+    if (x) { x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'source-over'; x.globalAlpha = 1; x.clearRect(0, 0, cv.width, cv.height); }
+    return cv;
+  }
+  function drawBehindSilhouette() {
+    if (!lastGolem || typeof document === 'undefined' || typeof ctx.getTransform !== 'function') return;
+    SIL_CV = silCanvas(SIL_CV); SIL_MASK = silCanvas(SIL_MASK);
+    var s = SIL_CV.getContext('2d'), mk = SIL_MASK.getContext('2d');
+    if (!s || !mk) return;
+    var main = ctx, m = main.getTransform(), L = lastGolem;
+    silPass = true;
+    try {
+      ctx = s; s.setTransform(m); drawPlayer();                // 캐릭터 (그림자 없이)
+      ctx = mk; mk.setTransform(m); drawGolemBody(L.b, L.base, L.hh, L.ww, L.stunned); // 골렘 모양 (부위 여럿을 한 장에)
+    } finally { ctx = main; silPass = false; }
+    s.setTransform(1, 0, 0, 1, 0, 0); s.globalAlpha = 1;
+    s.globalCompositeOperation = 'source-in'; s.fillStyle = SIL_COLOR; s.fillRect(0, 0, SIL_CV.width, SIL_CV.height); // 단색으로
+    s.globalCompositeOperation = 'destination-in'; s.drawImage(SIL_MASK, 0, 0);                                         // 골렘에 가려진 곳만 남김
+    s.globalCompositeOperation = 'source-over';
+    main.save(); main.setTransform(1, 0, 0, 1, 0, 0); main.globalAlpha = SIL_ALPHA;
+    main.drawImage(SIL_CV, 0, 0); main.restore();
+    silCount++;
   }
   function drawPlayer() {
     var g = game;
@@ -2450,8 +2487,10 @@
     updateFace();
     var lsk = lockedSkill();
     var ground = project(g.player.x + lx, g.player.y + ly, 0);
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    ctx.beginPath(); ctx.ellipse(ground.x, ground.y, PLAYER_R * COS * 1.5, PLAYER_R * SIN * 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    if (!silPass) { // 실루엣에는 발밑 그림자를 넣지 않는다
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath(); ctx.ellipse(ground.x, ground.y, PLAYER_R * COS * 1.5, PLAYER_R * SIN * 1.5, 0, 0, Math.PI * 2); ctx.fill();
+    }
     var base = project(g.player.x + lx, g.player.y + ly, jumpZ(lsk));
     var dirSide = g.faceLeft ? -1 : 1;           // 화면에서 보는 쪽
     var lean = 0, sy = 1 + 0.015 * Math.sin(g.stateT * 3); // 숨쉬기
@@ -2668,6 +2707,7 @@
     var order = [{ y: g.boss.x + g.boss.y, f: drawBoss }, { y: g.player.x + g.player.y, f: drawPlayer }];
     order.sort(function (a, b) { return a.y - b.y; });
     for (var i = 0; i < order.length; i++) order[i].f();
+    if (order[0].f === drawPlayer) drawBehindSilhouette(); // 캐릭터가 골렘 뒤면 가려진 부분을 실루엣으로 (작업 23)
     drawAttacks();
     drawSkills();
     drawSfx();
@@ -2720,7 +2760,7 @@
       menuOpen: function () { return { title: titleMenu.isOpen(), ranking: rankingMenu.isOpen(), pause: pauseMenu.isOpen() }; },
       key: function (k) { onKeyDown({ key: k, preventDefault: function () {} }); },
       keyUp: function (k) { onKeyUp({ key: k }); },
-      inAttack: inAttack, makeAttack: makeAttack, draw: draw, telegraphView: telegraphView, markerOuter: markerOuter, groggyPhase: groggyPhase, charRigs: CHAR_RIGS, charParts: CHAR_PARTS, charPose: charPose, charFace: CHAR_FACE, updateFace: updateFace, attackReach: attackReach, comboDmg: comboDmg, benchView: benchView, iconView: iconView, iconArt: ICON_ART, sprites: SPRITES,
+      inAttack: inAttack, makeAttack: makeAttack, draw: draw, telegraphView: telegraphView, markerOuter: markerOuter, groggyPhase: groggyPhase, charRigs: CHAR_RIGS, charParts: CHAR_PARTS, charPose: charPose, charFace: CHAR_FACE, updateFace: updateFace, silCount: function () { return silCount; }, silPassing: function () { return silPass; }, attackReach: attackReach, comboDmg: comboDmg, benchView: benchView, iconView: iconView, iconArt: ICON_ART, sprites: SPRITES,
       consts: { LIMIT: LIMIT, BOSS_HP: BOSS_HP, GROGGY_NEED: GROGGY_NEED, TAG_CD: TAG_CD, DODGE_CD: DODGE_CD, SPECIAL_CD: SPECIAL_CD, ULT_MAX: ULT_MAX, CHAR_HP: CHAR_HP, TELEGRAPH: TELEGRAPH, RANGE_SHOW: RANGE_SHOW, GROGGY_TIME: GROGGY_TIME, GROGGY_ANIM: GROGGY_ANIM, INTRO_TIME: INTRO_TIME, HITSTOP: HITSTOP, SLOW_SCALE: SLOW_SCALE, START_DIST: START_DIST, BOSS_R: BOSS_R, PLAYER_R: PLAYER_R, ATTACK_RANGE: ATTACK_RANGE, BOSS_H: BOSS_H, PATTERNS: PATTERNS, TAG_RANGE: TAG_RANGE, DASH_TIME: DASH_TIME, BOSS_R: BOSS_R, COMBO_DMG: COMBO_DMG, COMBO_CD: COMBO_CD, COMBO_RESET: COMBO_RESET, ZOOM: ZOOM, MARK_S: MARK_S, GROGGY_PHASES: GROGGY_PHASES, SKILLS: SKILLS, SNOW_SLOW: SNOW_SLOW, SNOW_TIME: SNOW_TIME, SKILL_INVULN: SKILL_INVULN, FIRE: FIRE }
     });
   }
