@@ -1,0 +1,25 @@
+<!-- 게임 밖 편의 기능 원본: 화면 틀과 꾸밈 견본. menu.js 와 함께 게임마다 복사해 따로 고쳐 쓴다 (CLAUDE.md 폴더 칸) -->
+<!-- index.html 의 <style> 에 넣을 것 -->
+<style>
+  .menu-box { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 220px; }
+  .menu-box button { margin: 0; }
+  .menu-box button.sub { background: #5c6070; color: #f2f2f2; }      /* 덜 중요한 칸 (시작 화면, 돌아가기) */
+  .menu-box button.sel { outline: 3px solid #ffffff; outline-offset: 2px; } /* ↑ ↓ 로 고른 칸 */
+</style>
+
+<!-- 일시정지: 게임 판(canvas) 위에 덮는다. 처음에는 hidden -->
+<div id="pause" class="overlay hidden">
+  <h2>일시정지</h2>
+  <div class="menu-box">
+    <button id="pause-resume">계속하기</button>
+    <button id="pause-restart">다시 하기</button>
+    <button id="pause-title" class="sub">시작 화면</button>
+  </div>
+  <p class="small">↑ ↓ 고르기 · Enter 정하기 · Esc 계속하기</p>
+</div>
+
+<!-- 시작 화면 메뉴: 시작 화면 안에 넣는다 -->
+<div class="menu-box">
+  <button id="menu-start">게임 시작</button>
+  <button id="menu-rank" class="sub">랭킹</button>
+</div>

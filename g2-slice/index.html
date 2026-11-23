@@ -72,7 +72,7 @@
     #result { background: rgba(8, 9, 14, 0.88); gap: 2px; padding: 6px 16px; } /* 랭킹 5줄이어도 화면 480 안에 들게 간격을 줄임 */
     #result .big { font-size: 34px; }
     #restart-btn { margin: 4px; padding: 7px 26px; }
-    #rank-wrap {
+    .rank-wrap {
       position: relative;
       min-width: 280px;
       padding: 7px 20px 9px;
@@ -82,7 +82,7 @@
       border-radius: 4px;
       box-shadow: inset 0 0 0 2px #2a2c37, inset 0 0 0 4px #44475a, 0 0 18px rgba(77, 208, 225, 0.3), 0 8px 20px rgba(0, 0, 0, 0.6);
     }
-    #rank-wrap::before, #rank-wrap::after {
+    .rank-wrap::before, .rank-wrap::after {
       content: '';
       position: absolute;
       top: -9px;
@@ -93,8 +93,8 @@
       transform: rotate(45deg);
       box-shadow: 0 0 10px #4dd0e1;
     }
-    #rank-wrap::before { left: -9px; }
-    #rank-wrap::after { right: -9px; }
+    .rank-wrap::before { left: -9px; }
+    .rank-wrap::after { right: -9px; }
     .rank-title { font-weight: bold; letter-spacing: 6px; color: #e8e4f0; border-bottom: 1px solid #4a4a58; padding-bottom: 4px; margin-bottom: 4px !important; }
     .rank-title span { font-size: 11px; letter-spacing: 0; color: #9e9aab; font-weight: normal; }
     table.rank { border-collapse: separate; border-spacing: 0 2px; font-size: 15px; margin: 0 auto; }
@@ -124,6 +124,40 @@
       animation: pulse 0.6s ease-in-out infinite alternate;
     }
     #groggy-btn:hover { background: radial-gradient(circle at 50% 38%, #80deea, #00838f); }
+    /* 고르기 메뉴 (templates/menu 에서 복사, 2026-11-23) */
+    .menu-box { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 220px; margin: 6px 0; }
+    .menu-box button { margin: 0; }
+    /* 돌 석판 버튼 (2026-11-23 일시정지를 게임 톤에 맞추며 시작 화면·랭킹·결과 화면 버튼도 함께): 어두운 돌, 돌 테두리, 금빛 글자.
+       고른 칸과 마우스를 올린 칸은 하늘색 룬빛으로 빛나고 양옆에 룬 마름모 */
+    .menu-box button, #restart-btn {
+      position: relative;
+      background: linear-gradient(#4a4c5a, #2c2e38);
+      color: #ffd54f;
+      border: 2px solid #6b6978;
+      border-radius: 3px;
+      letter-spacing: 3px;
+      text-shadow: 0 1px 0 #000, 0 0 8px rgba(255, 213, 79, 0.35);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 2px #2a2c37, 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    .menu-box button.sub { color: #c9c6d6; text-shadow: 0 1px 0 #000; }
+    .menu-box button:hover, #restart-btn:hover, .menu-box button.sel {
+      background: linear-gradient(#55586a, #33353f);
+      border-color: #4dd0e1;
+      color: #fff3b0;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), inset 0 0 0 2px #2a2c37, 0 0 14px rgba(77, 208, 225, 0.55), 0 4px 10px rgba(0, 0, 0, 0.5);
+    }
+    .menu-box button.sub:hover, .menu-box button.sub.sel { color: #e0f7fa; }
+    .menu-box button.sel::before, .menu-box button.sel::after {
+      content: ''; position: absolute; top: 50%; width: 8px; height: 8px; margin-top: -5px;
+      background: #4dd0e1; border: 1px solid #1b1424; transform: rotate(45deg); box-shadow: 0 0 8px #4dd0e1;
+    }
+    .menu-box button.sel::before { left: 12px; }
+    .menu-box button.sel::after { right: 12px; }
+    #pause { background: rgba(8, 9, 14, 0.8); }
+    .pause-panel { display: flex; flex-direction: column; align-items: center; min-width: 260px; padding: 12px 24px 12px; }
+    .pause-title { font-size: 20px; width: 100%; text-align: center; padding-left: 6px; }
+    #ranking { background: rgba(8, 9, 14, 0.88); }
+    #ranking .rank-wrap { min-width: 300px; }
     @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.08); } }
   </style>
 </head>
@@ -138,10 +172,28 @@
         <span><b>방향키</b> 이동</span><span><b>Shift</b> 회피</span>
         <span><b>A</b> 기본 공격</span><span><b>Space</b> 태그</span>
         <span><b>S</b> 특수 스킬</span><span><b>F</b> 그로기 (버튼 클릭도 됨)</span>
-        <span><b>D</b> 궁극 스킬</span><span><b>Enter</b> 시작 · 다시 하기</span>
+        <span><b>D</b> 궁극 스킬</span><span><b>Esc</b> 일시정지</span>
       </div>
-      <button id="start-btn">시작</button>
+      <!-- 시작 화면 메뉴 (templates/menu 에서 복사, 2026-11-23) -->
+      <div class="menu-box">
+        <button id="menu-start">게임 시작</button>
+        <button id="menu-rank" class="sub">랭킹</button>
+      </div>
+      <p class="small">↑ ↓ 고르기 · Enter 정하기</p>
       <p class="small">노란 전조: 회피 반격 또는 태그 반격 · 붉은 전조: 회피 반격만</p>
+    </div>
+
+    <!-- 시작 화면에서 보는 랭킹 (2026-11-23) -->
+    <div id="ranking" class="overlay hidden">
+      <div class="rank-wrap">
+        <p class="rank-title">랭킹 <span>(이 브라우저)</span></p>
+        <table class="rank" id="ranking-table"></table>
+        <p class="small hidden" id="ranking-empty">아직 기록이 없습니다</p>
+      </div>
+      <div class="menu-box">
+        <button id="ranking-back" class="sub">돌아가기</button>
+      </div>
+      <p class="small">Enter · Esc 돌아가기</p>
     </div>
 
     <div id="result" class="overlay hidden">
@@ -150,7 +202,7 @@
       <p>클리어타임</p>
       <p class="big" id="result-time">0.00</p>
       <p class="small hidden" id="result-out">(순위 밖)</p>
-      <div id="rank-wrap">
+      <div id="rank-wrap" class="rank-wrap">
         <p class="rank-title">랭킹 <span>(이 브라우저)</span></p>
         <table class="rank" id="rank-table"></table>
       </div>
@@ -162,8 +214,22 @@
       <button id="groggy-btn">F</button>
       <p class="small">그로기 · F 또는 클릭</p>
     </div>
+
+    <!-- 일시정지 (templates/menu 에서 복사, 2026-11-23). 그로기 버튼보다 위에 덮는다 -->
+    <div id="pause" class="overlay hidden">
+      <!-- 사원 돌판 (랭킹판과 같은 테두리와 룬 모서리. 2026-11-23 "본 게임의 톤앤매너에 맞는 스타일로") -->
+      <div class="rank-wrap pause-panel">
+        <p class="rank-title pause-title">일시정지</p>
+        <div class="menu-box">
+          <button id="pause-resume">계속하기</button>
+          <button id="pause-restart">다시 하기</button>
+          <button id="pause-title" class="sub">시작 화면</button>
+        </div>
+        <p class="small">↑ ↓ 고르기 · Enter 정하기 · Esc 계속하기</p>
+      </div>
+    </div>
   </div>
-  <div class="help">PC 키보드 전용 · 방향키 이동 · A 공격 · S 특수 · D 궁극 · Shift 회피 · Space 태그 · F 그로기</div>
+  <div class="help">PC 키보드 전용 · 방향키 이동 · A 공격 · S 특수 · D 궁극 · Shift 회피 · Space 태그 · F 그로기 · Esc 일시정지</div>
   <script src="./game.js"></script>
 </body>
 </html>

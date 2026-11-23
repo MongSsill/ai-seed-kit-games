@@ -12,7 +12,8 @@ function makeEl(id) {
     classList: {
       add: function (c) { if (cls.indexOf(c) < 0) cls.push(c); },
       remove: function (c) { var i = cls.indexOf(c); if (i >= 0) cls.splice(i, 1); },
-      contains: function (c) { return cls.indexOf(c) >= 0; }
+      contains: function (c) { return cls.indexOf(c) >= 0; },
+      toggle: function (c, on) { if (on === undefined) on = cls.indexOf(c) < 0; if (on) { if (cls.indexOf(c) < 0) cls.push(c); } else { var i = cls.indexOf(c); if (i >= 0) cls.splice(i, 1); } return on; }
     },
     addEventListener: function () {},
     appendChild: function (c) { el.children.push(c); },
@@ -510,9 +511,91 @@ function fresh(search, seed) {
   check(G, '빨강 3타: 꼬리 휘두르기', Math.abs(r2.r.tail) > 0.8, r2.r.tail);
   check(G, '파랑 1타: 한 팔 뻗기', Math.abs(b0.r.ra) > 0.8, b0.r.ra);
   check(G, '파랑 3타: 두 팔 벌리기', b2.r.la > 0.8 && b2.r.ra < -0.8, [b2.r.la, b2.r.ra]);
-  check(G, '초록 1타: 앞주먹 내지르기', g0.dx.fa < -20, g0.dx.fa);
-  check(G, '초록 3타: 앞다리 차기', g2.r.fl > 0.6, g2.r.fl);
+  check(G, '초록 1타: 오른쪽 주먹을 오른쪽(보는 쪽)으로 잽', g0.dx.ga > 20, g0.dx.ga);
+  check(G, '초록 3타: 오른쪽 다리로 오른쪽(보는 쪽) 앞차기', g2.r.bl < -0.6, g2.r.bl);
   try { h.draw(); check(G, '몸짓 그리기', true); } catch (e) { check(G, '몸짓 그리기', false, e.message); }
+})();
+
+// ---- 6-2b. 보는 쪽 (2026-11-23, 장부 65·67·72: 파랑·초록이 거꾸로 걸었다) ----
+// 그림이 원래 보는 쪽은 눈 짐작이 아니라 사용자가 확인한 값이다. 이 값을 바꾸려면 사용자에게 먼저 묻는다.
+(function () {
+  var G = '보는쪽';
+  var CONFIRMED = [1, 1, 1]; // 빨강 오른쪽 (2026-11-22 부터 지적 없음), 파랑 오른쪽 (장부 65 "진행방향과 반대방향"), 초록 오른쪽 (2026-11-23 "오른쪽이야")
+  var h = fresh('', 84);
+  [0, 1, 2].forEach(function (ci) {
+    var nm = ['빨강', '파랑', '초록'][ci];
+    check(G, nm + ': 그림이 원래 보는 쪽이 사용자 확인 값과 같음', h.charFace[ci] === CONFIRMED[ci], [h.charFace[ci], CONFIRMED[ci]]);
+    [['ArrowRight', 1, '오른쪽'], ['ArrowLeft', -1, '왼쪽']].forEach(function (k) {
+      var hh = fresh('', 85 + ci), gg = hh.getGame();
+      gg.boss.x = 0; gg.boss.y = -300; gg.player.x = 0; gg.player.y = 100; gg.cur = ci; gg.invuln = 99;
+      hh.key(k[0]); hh.run(0.3);
+      var side = hh.updateFace();
+      var flipped = side !== hh.charFace[ci];               // 그리기에서 그림을 뒤집는지
+      var drawnFace = flipped ? -hh.charFace[ci] : hh.charFace[ci]; // 화면에 그려진 그림이 보는 쪽
+      check(G, nm + ': ' + k[2] + '으로 걸으면 그림이 ' + k[2] + '을 봄', drawnFace === k[1], [side, flipped]);
+      hh.keyUp(k[0]);
+    });
+  });
+  // 초록 주먹·발차기는 그림이 보는 쪽으로 뻗어야 한다 (보는 쪽만 바꾸고 몸짓을 두면 보스 반대로 때린다)
+  var gp = function (idx) {
+    var hh = fresh('', 88 + idx), gg = hh.getGame();
+    gg.boss.x = 0; gg.boss.y = 0; gg.player.x = 60; gg.player.y = 0; gg.cur = 2; gg.invuln = 99; gg.combo = idx;
+    hh.key('a'); hh.keyUp('a'); hh.run(0.1);
+    return hh.charPose(2);
+  };
+  var p0 = gp(0), p1 = gp(1);
+  var reach = function (P) { return (P.dx.fa || 0) + (P.dx.ga || 0); };
+  check(G, '초록 1·2타 주먹이 그림이 보는 쪽으로 뻗음', reach(p0) * h.charFace[2] > 0 && reach(p1) * h.charFace[2] > 0, [reach(p0), reach(p1), h.charFace[2]]);
+})();
+
+// ---- 6-2c. 일시정지와 시작 화면 메뉴 (2026-11-23, templates/menu 에서 복사) ----
+(function () {
+  var G = '메뉴';
+  var h = load('', 91);
+  var m = h.menuOpen();
+  check(G, '처음은 시작 화면 메뉴가 열림', m.title && !m.ranking && !m.pause, m);
+  h.key('ArrowDown'); h.key('Enter');
+  m = h.menuOpen();
+  check(G, '↓ Enter 로 랭킹이 열림', m.ranking && !m.title && h.getState() === 'title', m);
+  h.key('Escape');
+  m = h.menuOpen();
+  check(G, '랭킹에서 Esc 로 시작 화면에 돌아감', m.title && !m.ranking, m);
+  h.key('ArrowUp'); h.key('Enter');
+  check(G, '↑ Enter 로 게임 시작', h.getState() === 'intro', h.getState());
+  h.run(3.1);
+  var g = h.getGame();
+  g.invuln = 99;
+  h.run(1);
+  var clock = g.clock, bossX = g.boss.x, bossY = g.boss.y;
+  h.key('Escape');
+  check(G, '싸움 중 Esc 로 일시정지', h.isPaused() && h.menuOpen().pause);
+  h.key('ArrowRight'); h.run(2);
+  check(G, '일시정지 중에는 시계·보스·캐릭터가 멈춤', g.clock === clock && g.boss.x === bossX && g.boss.y === bossY, [clock, g.clock]);
+  h.key('a');
+  check(G, '일시정지 중 A 는 공격하지 않음', !g.swing);
+  h.key('Escape');
+  check(G, '다시 Esc 로 계속하기', !h.isPaused() && !h.menuOpen().pause);
+  h.run(0.5);
+  check(G, '계속하면 시계가 다시 흐름', g.clock > clock, [clock, g.clock]);
+  h.key('Escape'); h.key('ArrowDown'); h.key('Enter');
+  check(G, '일시정지 → 다시 하기는 새 판 intro', h.getState() === 'intro' && h.getGame() !== g && !h.isPaused(), h.getState());
+  h.run(3.1);
+  h.key('Escape'); h.key('ArrowUp'); h.key('Enter');
+  m = h.menuOpen();
+  check(G, '일시정지 → 시작 화면 (↑ 로 맨 아래 칸)', h.getState() === 'title' && m.title && !h.isPaused(), [h.getState(), m]);
+  // 그로기 연출 중에는 일시정지가 열리지 않는다
+  var hg = load('?test', 92);
+  hg.key('Enter'); hg.run(3.1);
+  hg.key('f');
+  check(G, '그로기 연출 중 Esc 는 무시', hg.getState() === 'groggyAnim' && (hg.key('Escape'), !hg.isPaused()), hg.getState());
+  // 결과 화면에서 Esc 는 시작 화면
+  var hr = load('', 93);
+  hr.key('Enter'); hr.run(3.1);
+  hr.getGame().chars.forEach(function (c) { c.hp = 0; }); hr.run(0.1);
+  if (hr.getState() !== 'result') { hr.getGame().clock = 999; hr.run(0.1); }
+  var rs = hr.getState();
+  hr.key('Escape');
+  check(G, '결과 화면에서 Esc 는 시작 화면', rs === 'result' && hr.getState() === 'title' && hr.menuOpen().title, [rs, hr.getState()]);
 })();
 
 // ---- 6-3. 보스 크기, 파랑 원거리, 쉬는 캐릭터 얼굴 칸 (2026-11-22) ----

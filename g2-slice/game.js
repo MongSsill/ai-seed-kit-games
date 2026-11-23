@@ -86,11 +86,12 @@
     { id: 'burst', color: 'red', r: 193, weight: 20 }                           // 보스 중심 넓은 원 폭발
   ];
   var CHARS = [
+    // 이름은 원작(몬길: 스타다이브) 캐릭터 이름만 빌린다 (2026-11-23 사용자 결정 "이름만 차용"). 코드와 문서에서는 빨강·파랑·초록으로 부른다
     // reach: 기본 공격 사거리 배수 (보스 가장자리에서 ATTACK_RANGE 의 몇 배), dmg: 기본 공격 대미지 배수
     // 파랑은 원거리 (2026-11-22 "1.5배로 하자", "타 캐릭터의 90퍼 수준의 대미지로 보정하자")
-    { name: '빨강', color: '#ef5350', reach: 1, dmg: 1 },
-    { name: '파랑', color: '#42a5f5', reach: 1.5, dmg: 0.9 },
-    { name: '초록', color: '#66bb6a', reach: 1, dmg: 1 }
+    { name: '플레아', color: '#ef5350', reach: 1, dmg: 1 },
+    { name: '오필리아', color: '#42a5f5', reach: 1.5, dmg: 0.9 },
+    { name: '클로에', color: '#66bb6a', reach: 1, dmg: 1 }
   ];
 
   // ===== 화면 요소 =====
@@ -433,7 +434,7 @@
   // 그림체를 골렘 쪽에 맞추려고 AI 가 그린 40 x 64 도트 대신 쓴다. 그림을 못 읽으면 예전 도트 그림
   var CHAR_FILES = ['assets/char-red.png', 'assets/char-blue.png', 'assets/char-green.png'];
   var CHAR_ANCHOR_X = [0.58, 0.55, 0.6]; // 그림 가로에서 발 가운데 자리
-  var CHAR_FACE = [1, 1, -1];            // 그림이 원래 보는 쪽 (1 오른쪽, -1 왼쪽. 빨강·파랑은 정면에 가까움. 파랑을 왼쪽으로 잡았다가 "진행방향과 반대방향"이라 오른쪽으로 고침. 초록은 주먹과 앞다리가 왼쪽이라 왼쪽 (장부 67))
+  var CHAR_FACE = [1, 1, 1];             // 그림이 원래 보는 쪽 (1 오른쪽, -1 왼쪽). 눈 짐작으로 정하지 않고 사용자가 확인한 값만 쓴다 (검사 "보는쪽"이 지킴). 파랑 오른쪽 (장부 65), 초록 오른쪽 (2026-11-23 사용자 확인 "오른쪽이야". 장부 67 에서 AI 가 왼쪽으로 정했다가 거꾸로 걸음, 장부 72)
   // 캐릭터를 부위로 잘라 움직인다 (2026-11-22 걷기와 캐릭터마다 기본 공격 모션). 그림 좌표 (높이 320), pivot 은 어깨·엉덩이·날개 뿌리·꼬리 뿌리 (눈금을 그려 잼)
   // order: 0 몸 뒤, 2 몸 앞, 3 맨 앞. 겹치는 칸은 order 가 큰 부위가 가진다. 파랑은 다리가 드레스에 가려 팔만 자른다
   var CHAR_PARTS = [
@@ -482,6 +483,124 @@
       ep.onload = function () { EYE_PICS[i] = { img: ep, red: tinted(ep, 'rgba(255,40,80,0.9)'), cyan: tinted(ep, 'rgba(40,230,255,0.9)') }; };
       ep.src = 'assets/eyes-' + c + '.png';
     });
+  }
+
+  // ===== 스킬 아이콘 다시 그림 (2026-11-23 "타 에셋들에 비해서 너무 조잡", "어떤 기능의 아이콘인지 정확히 보기가 힘들어") =====
+  // 22 x 22 도트를 키우던 것을 96 x 96 캔버스에 매끄러운 선·빛·명암으로 다시 그린다. 칸 안에서 무엇인지 한눈에 보이게 모양을 하나로 크게.
+  // 빨강 특수는 사용자 그림 '용가리' 그대로 (위). 위 도트 그림(ICON_DEFS)은 브라우저 없는 검사에서만 쓰인다.
+  function vecIcon(draw) {
+    var c = document.createElement('canvas'); c.width = 96; c.height = 96;
+    var x = c.getContext('2d'); x.lineCap = 'round'; x.lineJoin = 'round';
+    draw(x);
+    return { img: c, gray: grayed(c), pic: true };
+  }
+  function glow(x, col, blur) { x.shadowColor = col; x.shadowBlur = blur; }
+  function grad(x, x0, y0, x1, y1, stops) { var g = x.createLinearGradient(x0, y0, x1, y1); stops.forEach(function (s) { g.addColorStop(s[0], s[1]); }); return g; }
+  function sparkle(x, cx, cy, s, col) {
+    x.save(); glow(x, col, 8); x.fillStyle = '#ffffff'; x.beginPath();
+    x.moveTo(cx, cy - s); x.lineTo(cx + s * 0.25, cy - s * 0.25); x.lineTo(cx + s, cy); x.lineTo(cx + s * 0.25, cy + s * 0.25);
+    x.lineTo(cx, cy + s); x.lineTo(cx - s * 0.25, cy + s * 0.25); x.lineTo(cx - s, cy); x.lineTo(cx - s * 0.25, cy - s * 0.25); x.closePath(); x.fill(); x.restore();
+  }
+  var VEC_ICONS = {
+    // 회피: 오른쪽으로 내닫는 겹친 화살 셋과 바람 줄 (빠르게 빠진다)
+    dodge: function (x) {
+      x.strokeStyle = 'rgba(128,222,234,0.55)'; x.lineWidth = 4;
+      [[10, 30, 34], [6, 48, 30], [12, 66, 34]].forEach(function (l) { x.beginPath(); x.moveTo(l[0], l[1]); x.lineTo(l[2], l[1]); x.stroke(); });
+      [[38, 0.35], [54, 0.65], [72, 1]].forEach(function (c) {
+        x.save(); x.globalAlpha = c[1]; glow(x, '#4dd0e1', 12);
+        x.strokeStyle = grad(x, c[0] - 18, 20, c[0] + 4, 76, [[0, '#e0f7fa'], [1, '#26c6da']]); x.lineWidth = 11;
+        x.beginPath(); x.moveTo(c[0] - 16, 22); x.lineTo(c[0] + 4, 48); x.lineTo(c[0] - 16, 74); x.stroke(); x.restore();
+      });
+      x.strokeStyle = '#ffffff'; x.lineWidth = 3; x.beginPath(); x.moveTo(58, 26); x.lineTo(74, 48); x.stroke();
+    },
+    // 태그: 금빛(나가는 캐릭터)과 하늘빛(들어오는 캐릭터) 화살표가 맞물려 돈다
+    tag: function (x) {
+      var arc = function (a0, a1, c0, c1, glowCol) {
+        x.save(); glow(x, glowCol, 10);
+        x.strokeStyle = grad(x, 0, 0, 96, 96, [[0, c0], [1, c1]]); x.lineWidth = 12;
+        x.beginPath(); x.arc(48, 48, 28, a0, a1); x.stroke();
+        var ex = 48 + 28 * Math.cos(a1), ey = 48 + 28 * Math.sin(a1), t = a1 + Math.PI / 2;
+        x.fillStyle = c1; x.beginPath();
+        x.moveTo(ex + Math.cos(t) * 16, ey + Math.sin(t) * 16);
+        x.lineTo(ex + Math.cos(t - Math.PI / 2) * 14, ey + Math.sin(t - Math.PI / 2) * 14);
+        x.lineTo(ex + Math.cos(t + Math.PI / 2) * 14, ey + Math.sin(t + Math.PI / 2) * 14);
+        x.closePath(); x.fill(); x.restore();
+      };
+      arc(Math.PI * 1.08, Math.PI * 1.82, '#fff3b0', '#ffb300', '#ffd54f');
+      arc(Math.PI * 0.08, Math.PI * 0.82, '#e0f7fa', '#00acc1', '#4dd0e1');
+      x.fillStyle = '#ffffff'; glow(x, '#ffffff', 8); x.beginPath(); x.arc(48, 48, 5, 0, Math.PI * 2); x.fill();
+    },
+    // 빨강 궁극: 용 발톱이 남긴 붉은 자국 셋
+    u0: function (x) {
+      for (var k = 0; k < 3; k++) {
+        var ox = (k - 1) * 20;
+        x.save(); glow(x, '#ff3d00', 14);
+        x.fillStyle = grad(x, 20 + ox, 10, 70 + ox, 86, [[0, '#fff59d'], [0.45, '#ff9100'], [1, '#c62828']]);
+        x.beginPath(); x.moveTo(30 + ox, 8); x.quadraticCurveTo(62 + ox, 38, 64 + ox, 88); x.quadraticCurveTo(40 + ox, 46, 30 + ox, 8); x.closePath();
+        x.fill(); x.restore();
+        x.strokeStyle = 'rgba(255,255,255,0.85)'; x.lineWidth = 2; x.beginPath(); x.moveTo(33 + ox, 14); x.quadraticCurveTo(54 + ox, 42, 61 + ox, 78); x.stroke();
+      }
+    },
+    // 파랑 특수: 눈 결정 (눈 내리는 설원)
+    s1: function (x) {
+      var g = x.createRadialGradient(48, 48, 4, 48, 48, 46); g.addColorStop(0, 'rgba(178,235,242,0.55)'); g.addColorStop(1, 'rgba(178,235,242,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 96, 96);
+      x.save(); glow(x, '#4dd0e1', 10); x.strokeStyle = '#ffffff'; x.lineWidth = 6;
+      for (var k = 0; k < 6; k++) {
+        var a = k * Math.PI / 3 - Math.PI / 2, ca = Math.cos(a), sa = Math.sin(a);
+        x.beginPath(); x.moveTo(48, 48); x.lineTo(48 + ca * 38, 48 + sa * 38); x.stroke();
+        [20, 30].forEach(function (d, j) {
+          var bx = 48 + ca * d, by = 48 + sa * d, l = j ? 8 : 11;
+          [-1, 1].forEach(function (s) { var b = a + s * Math.PI / 4; x.beginPath(); x.moveTo(bx, by); x.lineTo(bx + Math.cos(b) * l, by + Math.sin(b) * l); x.stroke(); });
+        });
+      }
+      x.restore();
+      x.strokeStyle = '#80deea'; x.lineWidth = 2;
+      for (var m = 0; m < 6; m++) { var aa = m * Math.PI / 3 - Math.PI / 2; x.beginPath(); x.moveTo(48, 48); x.lineTo(48 + Math.cos(aa) * 34, 48 + Math.sin(aa) * 34); x.stroke(); }
+      x.fillStyle = '#e0f7fa'; x.beginPath(); x.arc(48, 48, 7, 0, Math.PI * 2); x.fill();
+    },
+    // 파랑 궁극: 커다란 얼음 결정 (깎인 면의 밝고 어두운 쪽)
+    u1: function (x) {
+      var shard = function (cx, by, w, h) {
+        var top = by - h, mid = by - h * 0.78;
+        x.fillStyle = '#4fc3f7'; x.beginPath(); x.moveTo(cx, top); x.lineTo(cx - w, mid); x.lineTo(cx - w, by); x.lineTo(cx, by + w * 0.4); x.closePath(); x.fill();
+        x.fillStyle = '#0277bd'; x.beginPath(); x.moveTo(cx, top); x.lineTo(cx + w, mid); x.lineTo(cx + w, by); x.lineTo(cx, by + w * 0.4); x.closePath(); x.fill();
+        x.fillStyle = '#e1f5fe'; x.beginPath(); x.moveTo(cx, top); x.lineTo(cx - w * 0.45, mid + 4); x.lineTo(cx - w * 0.45, by - 6); x.lineTo(cx, by - 2); x.closePath(); x.fill();
+        x.strokeStyle = '#ffffff'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(cx, top); x.lineTo(cx, by + w * 0.4); x.stroke();
+      };
+      x.save(); glow(x, '#4dd0e1', 14);
+      shard(26, 82, 9, 40); shard(70, 84, 9, 46); shard(48, 86, 14, 72);
+      x.restore();
+      sparkle(x, 78, 22, 9, '#80deea'); sparkle(x, 18, 36, 6, '#80deea');
+    },
+    // 초록 특수: 잽, 잽, 어퍼컷 — 작은 타격 둘과 위로 치솟는 큰 타격과 바람
+    s2: function (x) {
+      var burst = function (cx, cy, r, col) {
+        x.save(); glow(x, col, 10); x.fillStyle = '#ffffff'; x.beginPath();
+        for (var k = 0; k < 16; k++) { var a = k * Math.PI / 8, rr = k % 2 ? r * 0.45 : r; x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); }
+        x.closePath(); x.fill(); x.fillStyle = col; x.beginPath(); x.arc(cx, cy, r * 0.32, 0, Math.PI * 2); x.fill(); x.restore();
+      };
+      x.save(); glow(x, '#66bb6a', 10); x.strokeStyle = 'rgba(165,214,167,0.9)'; x.lineWidth = 6;
+      x.beginPath(); x.moveTo(20, 84); x.quadraticCurveTo(60, 80, 66, 26); x.stroke();
+      x.lineWidth = 3; x.beginPath(); x.moveTo(34, 88); x.quadraticCurveTo(70, 82, 78, 40); x.stroke(); x.restore();
+      x.fillStyle = '#a5d6a7'; x.beginPath(); x.moveTo(66, 10); x.lineTo(54, 30); x.lineTo(78, 30); x.closePath(); x.fill();
+      burst(22, 46, 11, '#81c784'); burst(38, 62, 11, '#81c784'); burst(66, 30, 20, '#43a047');
+    },
+    // 초록 궁극: 뛰어올랐다 내려찍기 — 아래로 꽂히는 큰 화살과 땅의 충격파
+    u2: function (x) {
+      x.save(); glow(x, '#66bb6a', 12);
+      x.strokeStyle = 'rgba(165,214,167,0.95)'; x.lineWidth = 4;
+      x.beginPath(); x.ellipse(48, 76, 40, 11, 0, 0, Math.PI * 2); x.stroke();
+      x.lineWidth = 2.5; x.beginPath(); x.ellipse(48, 76, 26, 7, 0, 0, Math.PI * 2); x.stroke();
+      x.fillStyle = grad(x, 48, 6, 48, 72, [[0, '#e8f5e9'], [1, '#2e7d32']]);
+      x.beginPath(); x.moveTo(38, 6); x.lineTo(58, 6); x.lineTo(58, 44); x.lineTo(72, 44); x.lineTo(48, 72); x.lineTo(24, 44); x.lineTo(38, 44); x.closePath(); x.fill();
+      x.restore();
+      x.fillStyle = '#c8e6c9'; [[16, 60, 5], [80, 58, 5], [26, 52, 3], [70, 50, 3]].forEach(function (p) { x.beginPath(); x.arc(p[0], p[1], p[2], 0, Math.PI * 2); x.fill(); });
+      x.strokeStyle = '#ffffff'; x.lineWidth = 2.5; x.beginPath(); x.moveTo(44, 10); x.lineTo(44, 46); x.stroke();
+    }
+  };
+  if (typeof Image !== 'undefined') {
+    for (var vk in VEC_ICONS) { try { ICON_ART[vk] = vecIcon(VEC_ICONS[vk]); } catch (e) { /* 못 그리면 도트 그림 그대로 */ } }
   }
 
   // ===== 2.5D 투영: 바닥 좌표 (x, y, 높이 z) → 화면 좌표 =====
@@ -549,25 +668,208 @@
     };
   }
 
-  // ===== 소리 (직접 만든 짧은 소리) =====
-  var audio = null;
-  function tone(freq, dur, type, vol, slide) {
+  // ===== 소리 (2026-11-23 다시 만듦: "너무 가벼운 소리" → 장면에 맞는 소리. 파일 없이 코드로 만든다) =====
+  // 재료 둘: 음(osc, 사인·톱니 등)과 잡음(noise, 쉬익 소리를 걸러서 불·바람·할퀴기·폭발을 낸다).
+  // 사원 느낌으로 큰 소리에는 울림(reverb)을 조금 섞는다. 자주 나는 소리(기본 공격)는 약하게, 드문 소리(스킬·반격·그로기)만 세게 (장부 71).
+  var audio = null, master = null, verb = null, noiseBuf = null, audioErr = null; // audioErr: 마지막 소리 오류 (검사용)
+  function au() {
+    if (audio) return audio;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
     try {
-      if (!audio) {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        audio = new AC();
-      }
-      var o = audio.createOscillator();
-      var g = audio.createGain();
-      o.type = type || 'square';
-      o.frequency.setValueAtTime(freq, audio.currentTime);
-      if (slide) o.frequency.exponentialRampToValueAtTime(slide, audio.currentTime + dur);
-      g.gain.setValueAtTime(vol || 0.08, audio.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
-      o.connect(g); g.connect(audio.destination);
-      o.start(); o.stop(audio.currentTime + dur);
-    } catch (e) { /* 소리가 안 나도 게임은 계속 */ }
+      audio = new AC();
+      master = audio.createDynamicsCompressor(); // 여러 소리가 겹쳐도 찢어지지 않게
+      master.threshold.value = -14; master.ratio.value = 4;
+      var mv = audio.createGain(); mv.gain.value = 0.9;
+      master.connect(mv); mv.connect(audio.destination);
+      // 잡음 1초
+      noiseBuf = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+      var d = noiseBuf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      // 울림: 1.6초 동안 줄어드는 잡음으로 만든 공간
+      verb = audio.createConvolver();
+      var len = Math.floor(audio.sampleRate * 1.6), ir = audio.createBuffer(2, len, audio.sampleRate);
+      for (var c = 0; c < 2; c++) { var ch = ir.getChannelData(c); for (var j = 0; j < len; j++) ch[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 3); }
+      verb.buffer = ir;
+      var vg = audio.createGain(); vg.gain.value = 0.5;
+      verb.connect(vg); vg.connect(master);
+    } catch (e) { audio = null; }
+    return audio;
+  }
+  // 소리 하나를 내보낸다: 크기 봉투(올라가는 시간 a, 전체 dur)와 울림 비율 wet
+  function out(node, vol, dur, a, at, wet) {
+    var g = audio.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), at + (a || 0.005));
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    node.connect(g); g.connect(master);
+    if (wet) { var w = audio.createGain(); w.gain.value = wet; g.connect(w); w.connect(verb); }
+  }
+  // 음: freq 에서 slide 로 미끄러진다. delay 초 뒤에 시작
+  function osc(freq, dur, type, vol, slide, o) {
+    o = o || {};
+    if (!au()) return;
+    try {
+      var at = audio.currentTime + (o.delay || 0), s = audio.createOscillator();
+      s.type = type || 'sine';
+      s.frequency.setValueAtTime(freq, at);
+      if (slide) s.frequency.exponentialRampToValueAtTime(slide, at + dur);
+      var node = s;
+      if (o.lp) { var f = audio.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = o.lp; s.connect(f); node = f; }
+      out(node, vol, dur, o.a, at, o.wet);
+      s.start(at); s.stop(at + dur + 0.05);
+    } catch (e) { audioErr = e; /* 소리가 안 나도 게임은 계속 */ }
+  }
+  // 잡음: 거르는 종류(type)와 가운데 높이(f → f2 로 미끄러짐), 날카로움(q)
+  function noise(dur, type, f, f2, vol, o) {
+    o = o || {};
+    if (!au()) return;
+    try {
+      var at = audio.currentTime + (o.delay || 0), s = audio.createBufferSource();
+      s.buffer = noiseBuf; s.loop = true;
+      var flt = audio.createBiquadFilter();
+      flt.type = type; flt.Q.value = o.q || 1;
+      flt.frequency.setValueAtTime(f, at);
+      if (f2) flt.frequency.exponentialRampToValueAtTime(f2, at + dur);
+      s.connect(flt);
+      out(flt, vol, dur, o.a, at, o.wet);
+      s.start(at, Math.random() * 0.5); s.stop(at + dur + 0.05);
+    } catch (e) { audioErr = e; /* 소리가 안 나도 게임은 계속 */ }
+  }
+  // 장면마다 소리. ch 는 캐릭터 (0 빨강, 1 파랑, 2 초록), i 는 몇 번째 (기본 공격 타수, 스킬 몇 번째 타격)
+  // 2026-11-23 묵직하게 다시 ("전체적으로 가벼운 느낌", "뿅뿅거리는 느낌을 빼줘"): 높은 음이 미끄러지는 소리를 모두 빼고,
+  // 낮은 쿵(thud)·걸러 낸 잡음(타격, 바람, 불, 부서짐)·낮은 징(gong)으로만 만든다. 자주 나는 소리는 약하게, 드문 소리만 세게 (장부 71)
+  function sfx(name, ch, i) {
+    if (!au()) return;
+    var r = function (lo, hi) { return lo + Math.random() * (hi - lo); };
+    var thud = function (f, dur, vol, delay) { osc(f, dur, 'sine', vol, f * 0.4, { delay: delay || 0 }); };        // 낮은 쿵
+    var whoosh = function (f, f2, dur, vol, o) { o = o || {}; if (!o.q) o.q = 1.2; noise(dur, 'bandpass', f, f2, vol, o); }; // 바람 가르는 소리
+    var gong = function (f, delay, vol) {                                                                         // 사원의 낮은 징
+      [[1, 1], [1.42, 0.5], [2.09, 0.3], [2.76, 0.18]].forEach(function (p) { osc(f * p[0], 2.4, 'sine', vol * p[1], 0, { delay: delay, a: 0.01, wet: 0.6 }); });
+      noise(0.12, 'lowpass', 900, 200, vol * 0.8, { delay: delay });
+    };
+    switch (name) {
+      // --- 캐릭터 기본 공격 (자주 나므로 약하게) ---
+      case 'atk':
+        if (ch === 0) { // 빨강: 할퀴기. 3타는 꼬리 휘두르기
+          if (i < 2) { noise(0.12, 'highpass', r(1600, 2000), 700, 0.13, { q: 0.7 }); noise(0.07, 'bandpass', 900, 0, 0.1, { q: 2, delay: 0.02 }); thud(r(115, 125), 0.1, 0.22, 0.02); }
+          else { whoosh(250, 120, 0.25, 0.25, { a: 0.05 }); thud(85, 0.22, 0.36, 0.12); noise(0.1, 'lowpass', 1500, 300, 0.2, { delay: 0.12 }); }
+        } else if (ch === 1) { // 파랑: 얼음 조각이 날아가 부서짐. 3타는 더 큰 덩어리
+          noise(0.08, 'bandpass', 2400, 1200, 0.08, { q: 3 }); noise(0.1, 'highpass', 2500, 0, 0.1, { delay: 0.05 }); thud(r(135, 145), 0.1, 0.2, 0.05);
+          if (i === 2) { thud(100, 0.2, 0.32, 0.08); noise(0.2, 'lowpass', 2500, 400, 0.22, { delay: 0.08 }); }
+        } else { // 초록: 주먹 퍽. 3타는 앞차기
+          thud(r(145, 155), 0.1, 0.32, 0.03); noise(0.06, 'bandpass', 700, 0, 0.2, { q: 1.2, delay: 0.03 });
+          if (i === 2) { whoosh(300, 900, 0.12, 0.12); thud(100, 0.2, 0.42, 0.07); noise(0.15, 'lowpass', 1200, 200, 0.25, { delay: 0.07 }); }
+        }
+        break;
+      case 'atkMiss': // 허공을 가름
+        whoosh(300, 800, 0.12, 0.08);
+        break;
+      // --- 스킬 시작 (드물어서 세게) ---
+      case 'special':
+        if (ch === 0) { // 빨강: 용이 나와 불을 뿜음
+          osc(60, 0.7, 'sawtooth', 0.18, 45, { lp: 250, a: 0.05 });
+          noise(0.7, 'lowpass', 300, 1400, 0.34, { a: 0.08, q: 0.7, wet: 0.25 });
+          noise(0.55, 'bandpass', 1800, 1200, 0.07, { q: 3, delay: 0.1 }); // 타닥거림
+        } else if (ch === 1) { // 파랑: 설원이 깔림. 낮은 바람과 땅이 얼어붙는 쿵
+          whoosh(300, 700, 0.8, 0.22, { q: 1.5, a: 0.2, wet: 0.5 }); thud(70, 0.5, 0.32, 0.1);
+          noise(0.6, 'highpass', 3000, 0, 0.04, { a: 0.2 });
+        } else { // 초록: 바람을 실은 잽 잽 어퍼컷 (때리는 소리는 skillHit)
+          whoosh(250, 1000, 0.15, 0.14);
+        }
+        break;
+      case 'specialMiss': // 닿지 않음
+        whoosh(500, 250, 0.15, 0.07);
+        break;
+      case 'ult':
+        if (ch === 0) { // 빨강: 용의 포효
+          osc(110, 0.8, 'sawtooth', 0.22, 60, { lp: 600, a: 0.06, wet: 0.4 }); osc(113, 0.8, 'sawtooth', 0.16, 62, { lp: 500, a: 0.06 });
+          noise(0.8, 'bandpass', 400, 180, 0.25, { q: 0.8, a: 0.06, wet: 0.3 }); thud(55, 0.6, 0.3);
+        } else if (ch === 1) { // 파랑: 얼음 결정이 모여드는 낮은 울림
+          osc(55, 1.0, 'sine', 0.35, 35, { a: 0.1 });
+          noise(0.9, 'lowpass', 600, 2500, 0.2, { a: 0.3, wet: 0.5 }); noise(0.6, 'highpass', 2500, 5000, 0.05, { a: 0.3 });
+        } else { // 초록: 기합과 함께 바람이 휘몰아침
+          whoosh(200, 1200, 0.5, 0.24, { a: 0.1, wet: 0.3 }); osc(90, 0.3, 'sawtooth', 0.1, 140, { lp: 400 }); thud(80, 0.3, 0.3);
+        }
+        break;
+      case 'notReady': // 쿨타임·게이지가 아직: 막힌 둔한 소리
+        noise(0.07, 'lowpass', 500, 200, 0.12); thud(90, 0.06, 0.12);
+        break;
+      // --- 스킬 타격 ---
+      case 'skillHit':
+        if (ch === 0 && i === 'special') { noise(0.12, 'lowpass', 1500, 400, 0.2); thud(80, 0.1, 0.18); } // 불길이 덮침
+        else if (ch === 0) { noise(0.14, 'highpass', 1500, 600, 0.22); thud(110, 0.12, 0.3); noise(0.08, 'bandpass', 800, 0, 0.12, { q: 2 }); } // 발톱 난도질
+        else if (ch === 1 && i === 'special') { thud(60, 0.45, 0.4); noise(0.4, 'lowpass', 2000, 300, 0.25, { wet: 0.4 }); noise(0.25, 'highpass', 2500, 0, 0.07); } // 설원이 덮침
+        else if (ch === 1) { thud(r(115, 125), 0.12, 0.3); noise(0.12, 'bandpass', 1500, 0, 0.2, { q: 1 }); noise(0.1, 'highpass', 3000, 0, 0.08); } // 눈덩이 퍽, 부서짐
+        else { thud(r(145, 155), 0.11, 0.35); noise(0.07, 'bandpass', 900, 0, 0.22, { q: 1.4 }); } // 주먹·발 퍽
+        break;
+      case 'stomp': // 초록 궁극 내려찍기
+        thud(60, 0.8, 0.55); noise(0.8, 'lowpass', 1500, 60, 0.4, { wet: 0.45 }); noise(0.4, 'bandpass', 1500, 500, 0.12, { q: 1, delay: 0.05 });
+        break;
+      // --- 회피, 태그, 반격 ---
+      case 'dodge': // 몸을 날리는 바람 소리
+        whoosh(250, 1100, 0.18, 0.14);
+        break;
+      case 'tag': // 교대: 휙 하고 들어와 착지
+        whoosh(900, 250, 0.16, 0.14); thud(90, 0.12, 0.2, 0.06);
+        break;
+      case 'tagAttack':
+        thud(140, 0.12, 0.35); noise(0.08, 'bandpass', 800, 0, 0.22, { q: 1.4 });
+        break;
+      case 'counter': // 반격 성공: 무기가 부딪히는 묵직한 쾅과 불꽃, 사원 울림 (가장 중요한 순간)
+        thud(70, 0.6, 0.55); noise(0.5, 'lowpass', 3000, 100, 0.4, { wet: 0.5 });
+        osc(420, 0.45, 'triangle', 0.07, 0, { wet: 0.6 }); osc(590, 0.35, 'triangle', 0.04, 0, { wet: 0.6 }); // 낮은 금속 울림 (미끄러지지 않음)
+        noise(0.08, 'highpass', 4000, 1500, 0.12);
+        if (ch === 'tag') whoosh(900, 250, 0.2, 0.14);
+        break;
+      case 'hurt': // 맞음: 둔탁한 퍽
+        thud(110, 0.18, 0.35); noise(0.14, 'lowpass', 1000, 150, 0.22);
+        break;
+      case 'down': // 캐릭터가 쓰러지고 다음 캐릭터가 나옴: 무너지는 쿵
+        osc(120, 0.4, 'sawtooth', 0.1, 60, { lp: 300 }); noise(0.4, 'lowpass', 800, 100, 0.2); thud(70, 0.45, 0.4, 0.1);
+        break;
+      // --- 보스 ---
+      case 'telegraph': // 전조: 노랑은 돌이 갈리며 차오름, 빨강은 낮게 으르렁
+        if (ch === 'red') { osc(45, 0.7, 'sawtooth', 0.2, 60, { lp: 180, a: 0.15 }); noise(0.7, 'lowpass', 200, 500, 0.15, { a: 0.3 }); }
+        else { noise(0.55, 'bandpass', 400, 1200, 0.08, { q: 4, a: 0.4 }); osc(55, 0.6, 'sawtooth', 0.12, 70, { lp: 200, a: 0.2 }); }
+        break;
+      case 'bossHit': // 패턴마다 공격 소리
+        if (ch === 'fan') { whoosh(200, 700, 0.4, 0.32, { q: 0.9, a: 0.05 }); thud(70, 0.25, 0.3, 0.12); }
+        else if (ch === 'slam') { thud(50, 0.9, 0.6); noise(0.8, 'lowpass', 1800, 50, 0.45, { wet: 0.5 }); noise(0.5, 'bandpass', 2000, 600, 0.1, { q: 2, delay: 0.08 }); }
+        else if (ch === 'dash') { noise(0.7, 'lowpass', 200, 600, 0.35, { a: 0.05 }); osc(40, 0.7, 'sawtooth', 0.15, 32, { lp: 150 }); }
+        else { thud(40, 1.1, 0.6); noise(1.1, 'lowpass', 2500, 40, 0.5, { wet: 0.6 }); noise(0.3, 'highpass', 3000, 800, 0.1); } // 넓은 폭발
+        break;
+      // --- 그로기 ---
+      case 'groggyReady': // 버튼이 뜸: 낮은 징
+        gong(70, 0, 0.2);
+        break;
+      case 'groggyGo': // 고양이가 날아감: 바람 가르는 소리
+        whoosh(250, 1200, 0.4, 0.18);
+        break;
+      case 'groggyBurst': // 보라·분홍 폭발
+        thud(50, 1.0, 0.55); noise(1.0, 'lowpass', 3500, 60, 0.45, { wet: 0.55 }); osc(140, 0.8, 'sine', 0.06, 0, { wet: 0.7 });
+        break;
+      case 'groggyEyes': // 눈 클로즈업: 숨을 들이켜듯 차오르다 쿵
+        noise(0.35, 'lowpass', 200, 3000, 0.2, { a: 0.3 }); thud(60, 0.5, 0.42, 0.3);
+        break;
+      case 'groggyBind': // 빛 고리 구속: 묵직한 사슬이 철컥이고 조임
+        for (var k = 0; k < 4; k++) noise(0.06, 'bandpass', r(1200, 1800), 0, 0.14, { q: 6, delay: k * 0.07 });
+        thud(80, 0.3, 0.3, 0.25);
+        break;
+      case 'groggyHit': // 구속된 보스에게 큰 일격
+        thud(45, 1.0, 0.6); noise(0.7, 'lowpass', 2500, 60, 0.4, { wet: 0.5 });
+        break;
+      // --- 판의 처음과 끝 ---
+      case 'start': // 사원의 큰 징
+        gong(55, 0, 0.3);
+        break;
+      case 'win': // 큰북 둘과 징
+        thud(70, 0.4, 0.5); thud(70, 0.4, 0.5, 0.25); gong(65, 0.5, 0.3);
+        break;
+      case 'lose': // 느리게 내려가는 큰북 셋과 낮은 울림
+        thud(70, 0.5, 0.45); thud(60, 0.5, 0.45, 0.35); thud(45, 0.7, 0.5, 0.7); noise(1.2, 'lowpass', 150, 0, 0.2, { delay: 0.7, wet: 0.4 });
+        break;
+    }
   }
 
   // ===== 도움 함수 =====
@@ -608,7 +910,7 @@
       var myIdx = list.indexOf(me);
       list = list.slice(0, RANK_MAX);
       if (!TEST) saveRank(list);
-      renderRank(list, myIdx < RANK_MAX ? myIdx : -1, me);
+      renderRank(list, myIdx < RANK_MAX ? myIdx : -1);
       elRankWrap.classList.remove('hidden');
       // 5위 안에 못 들면 클리어타임 밑에 "(순위 밖)" (2026-11-22, 랭킹판 아래 안내 줄 대신)
       if (myIdx < RANK_MAX) elResultOut.classList.add('hidden'); else elResultOut.classList.remove('hidden');
@@ -617,7 +919,7 @@
       elResultOut.classList.add('hidden');
     }
     elResult.classList.remove('hidden');
-    if (win) tone(660, 0.5, 'triangle', 0.12, 990); else tone(220, 0.6, 'sawtooth', 0.1, 110);
+    sfx(win ? 'win' : 'lose');
   }
 
   // ===== 랭킹판 저장 (localStorage: 이 기기, 이 브라우저에 남는다. 닫았다 열어도 남는다) =====
@@ -633,34 +935,108 @@
     try { window.localStorage.setItem(SAVE_KEY, JSON.stringify(list)); } catch (e) { /* 저장 못 해도 계속 */ }
   }
   // 랭킹판 줄: 1~3위는 금·은·동 메달, 이번 판 줄은 빛난다 (2026-11-22 사원 돌판으로 다시 꾸밈)
-  function renderRank(list, myIdx) {
-    elRankTable.innerHTML = '';
+  function renderRank(list, myIdx, table) {
+    table = table || elRankTable;
+    table.innerHTML = '';
     for (var i = 0; i < list.length; i++) {
       var tr = document.createElement('tr');
       tr.className = 'r' + (i + 1) + (i === myIdx ? ' me' : '');
       tr.innerHTML = '<td class="no"><span class="medal">' + (i + 1) + '</span></td><td class="t">' + fmtTime(list[i].t) + '</td><td class="d">' + list[i].d + '</td>';
-      elRankTable.appendChild(tr);
+      table.appendChild(tr);
     }
   }
+
+  // ===== 고르기 메뉴 (templates/menu/menu.js 에서 복사, 2026-11-23. 게임 2 에 맞춰 고쳐 쓴다) =====
+  function makeMenu(overlay, buttons, onChoose, onEsc) {
+    var sel = 0, open = false;
+    function refresh() { buttons.forEach(function (b, i) { if (b && b.classList) b.classList.toggle('sel', i === sel); }); }
+    buttons.forEach(function (b, i) {
+      if (!b || !b.addEventListener) return;
+      b.addEventListener('click', function () { if (open) onChoose(i); });
+      b.addEventListener('mouseenter', function () { if (open) { sel = i; refresh(); } });
+    });
+    return {
+      open: function (first) { open = true; sel = first || 0; refresh(); overlay.classList.remove('hidden'); },
+      close: function () { open = false; overlay.classList.add('hidden'); },
+      isOpen: function () { return open; },
+      selected: function () { return sel; },
+      key: function (e) {
+        if (!open) return false;
+        var k = e.key;
+        if (k === 'Escape') { if (onEsc) onEsc(); return true; }
+        if (k === 'Enter' || k === ' ') { if (e.preventDefault) e.preventDefault(); if (!e.repeat) onChoose(sel); return true; }
+        if (k === 'ArrowUp' || k === 'ArrowDown') {
+          if (e.preventDefault) e.preventDefault();
+          sel = (sel + (k === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length;
+          refresh();
+          return true;
+        }
+        return true; // 메뉴가 열려 있으면 다른 키는 게임에 넘기지 않는다
+      }
+    };
+  }
+  var byId = function (id) { return document.getElementById(id); };
+  // 시작 화면: 게임 시작 / 랭킹
+  var titleMenu = makeMenu(elTitle, [byId('menu-start'), byId('menu-rank')], function (i) {
+    if (i === 0) startGame(); else openRanking();
+  }, null);
+  // 시작 화면에서 보는 랭킹: 돌아가기 하나. Enter 와 Esc 모두 돌아간다
+  var rankingMenu = makeMenu(byId('ranking'), [byId('ranking-back')], function () { closeRanking(); }, function () { closeRanking(); });
+  function openRanking() {
+    var list = loadRank();
+    renderRank(list, -1, byId('ranking-table'));
+    var empty = byId('ranking-empty');
+    if (list.length) empty.classList.add('hidden'); else empty.classList.remove('hidden');
+    titleMenu.close();
+    rankingMenu.open();
+  }
+  function closeRanking() { rankingMenu.close(); titleMenu.open(1); }
+  // 일시정지: 판을 그대로 멈춘다 (시계·클리어타임·보스·쿨타임 모두). 그로기 연출 중과 결과 화면에서는 열리지 않는다
+  var paused = false;
+  var pauseMenu = makeMenu(byId('pause'), [byId('pause-resume'), byId('pause-restart'), byId('pause-title')], function (i) {
+    if (i === 0) resumeGame();
+    else if (i === 1) { closePause(); startGame(); }
+    else { closePause(); goTitle(); }
+  }, function () { resumeGame(); });
+  function canPause() { return state === 'intro' || state === 'fight' || state === 'groggyWait'; }
+  function pauseGame() { paused = true; keys = {}; pauseMenu.open(); }
+  function closePause() { paused = false; keys = {}; pauseMenu.close(); }
+  function resumeGame() { closePause(); }
+  function goTitle() {
+    game = null;
+    state = 'title';
+    elResult.classList.add('hidden');
+    elGroggy.classList.add('hidden');
+    titleMenu.open();
+  }
+
+  titleMenu.open(); // 처음은 시작 화면, "게임 시작" 칸을 고른 채로
 
   // ===== 시작 =====
   function startGame() {
     game = newGame();
     state = 'intro';
-    elTitle.classList.add('hidden');
+    titleMenu.close();
     elResult.classList.add('hidden');
     elGroggy.classList.add('hidden');
-    tone(110, 1.2, 'sawtooth', 0.1, 55);
+    sfx('start');
   }
 
   // ===== 입력 =====
   function onKeyDown(e) {
     var k = e.key;
     if (k === ' ' || k.indexOf('Arrow') === 0) e.preventDefault();
+    // 메뉴가 열려 있으면 메뉴가 키를 먼저 받는다 (일시정지, 랭킹, 시작 화면)
+    if (pauseMenu.key(e) || rankingMenu.key(e) || titleMenu.key(e)) return;
     if (e.repeat) return;
+    if (k === 'Escape') {
+      if (canPause()) pauseGame();
+      else if (state === 'result') goTitle(); // 결과 화면에서 Esc 는 시작 화면으로
+      return;
+    }
     keys[k] = true;
     if (k === 'Enter') {
-      if (state === 'title' || state === 'result') startGame();
+      if (state === 'result') startGame();
       return;
     }
     if (k === 'f' || k === 'F' || k === 'ㄹ') { if (state === 'groggyWait') doGroggy(); return; }
@@ -678,7 +1054,6 @@
   }
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
-  document.getElementById('start-btn').addEventListener('click', startGame);
   document.getElementById('restart-btn').addEventListener('click', startGame);
   document.getElementById('groggy-btn').addEventListener('click', function () { if (state === 'groggyWait') doGroggy(); });
 
@@ -706,9 +1081,9 @@
       damageBoss(comboDmg(g.cur, i));
       gainUlt(ULT_BASIC);
       g.shake = i === 2 ? 0.2 : 0.08; g.shakeAmp = i === 2 ? 6 : 2.5;
-      tone(i === 2 ? 330 : 520, i === 2 ? 0.12 : 0.06, 'square', i === 2 ? 0.08 : 0.05, i === 2 ? 160 : 0);
+      sfx('atk', g.cur, i);
     } else {
-      tone(200, 0.05, 'square', 0.03);
+      sfx('atkMiss');
     }
   }
 
@@ -730,23 +1105,23 @@
   function doSpecial() {
     var g = game, c = g.chars[g.cur];
     if (g.lock > 0) return;
-    if (c.specialCd > 0) { tone(180, 0.06, 'square', 0.03); return; }
+    if (c.specialCd > 0) { sfx('notReady'); return; }
     c.specialCd = SPECIAL_CD;
     if (startSkill('special')) {
       gainUlt(ULT_SPECIAL);
-      tone(380, 0.18, 'sawtooth', 0.08, 760);
+      sfx('special', g.cur);
     } else {
-      tone(300, 0.12, 'sawtooth', 0.04, 150);
+      sfx('specialMiss');
     }
   }
   function doUlt() {
     var g = game, c = g.chars[g.cur];
     if (g.lock > 0) return;
-    if (c.ult < ULT_MAX) { tone(180, 0.06, 'square', 0.03); return; }
+    if (c.ult < ULT_MAX) { sfx('notReady'); return; }
     c.ult = 0;
     g.ultCount[g.cur] += 1;
     startSkill('ult');
-    tone(200, 0.5, 'sawtooth', 0.12, 900);
+    sfx('ult', g.cur);
   }
   // ===== 스킬 입자 (2026-11-22 "스킬의 퀄리티는 여전히 조악해" → 캐릭터 그림 수준과 톤에 맞춰 다시 만듦) =====
   // 색은 단계(ramp)를 따라 바뀌고, glow 는 겹칠수록 밝아지게 그린다. 모양: sq 네모 칸, ci 둥근 빛, flake 눈송이, tri 파편, line 속도선
@@ -862,7 +1237,7 @@
         if (sk.hit) {
           skillHitFx(sk, sk.next);
           damageBoss(hits[sk.next][1], hits.length === 1 ? '특수 ' + hits[0][1] : null);
-          tone(sk.kind === 'ult' ? 260 : 420, 0.07, 'square', 0.05, sk.kind === 'ult' ? 520 : 840);
+          if (sk.def.jump && sk.next === hits.length - 1) sfx('stomp'); else sfx('skillHit', sk.ch, sk.kind);
           if (sk.def.jump && sk.next === hits.length - 1) { g.shake = 0.3; g.shakeAmp = 9; } // 내려찍기
         }
         sk.next++;
@@ -912,7 +1287,7 @@
       damageBoss(COUNTER_DMG, '회피 반격!');
       onCounter('dodge');
     } else {
-      tone(700, 0.05, 'sine', 0.04, 1200);
+      sfx('dodge');
     }
   }
   // ===== 태그 =====
@@ -928,10 +1303,11 @@
   function doTag() {
     var g = game;
     var next = tagTarget();
-    if (next < 0) { tone(180, 0.08, 'square', 0.04); return; }
+    if (next < 0) { sfx('notReady'); return; }
     g.cur = next;
     g.lock = 0; // 스킬 중에도 태그는 된다
     g.chars[next].tagCd = TAG_CD;
+    sfx('tag');
     g.invuln = Math.max(g.invuln, TAG_INVULN);
     var b = g.boss;
     var a = b.attack;
@@ -945,11 +1321,11 @@
     } else if (dist(g.player, g.boss) <= BOSS_R + TAG_RANGE) {
       // 태그 공격: 들어온 캐릭터가 보스를 한 번 친다 (보스 가장자리에서 170 안)
       damageBoss(TAG_ATTACK_DMG, '태그 공격');
-      tone(440, 0.1, 'triangle', 0.07, 660);
+      sfx('tagAttack');
     } else {
       // 멀면 캐릭터만 바뀐다
       g.hits.push({ x: g.player.x, y: g.player.y, z: 50, t: 0.6, text: '너무 멀다' });
-      tone(300, 0.1, 'triangle', 0.04, 200);
+      // 소리는 위에서 낸 교대 소리만
     }
   }
 
@@ -960,8 +1336,7 @@
     g.flash = 0.25;
     g.zoom = ZOOM;
     g.zoomAt = { x: g.player.x, y: g.player.y };
-    tone(kind === 'tag' ? 1400 : 1200, 0.14, 'square', 0.09, 2000);
-    tone(330, 0.25, 'triangle', 0.06);
+    sfx('counter', kind);
     checkGroggy();
   }
 
@@ -974,7 +1349,7 @@
     g.stateT = 0;
     g.boss.attack = null; g.boss.dash = null; g.boss.phase = 'wait'; g.boss.t = 1.0;
     elGroggy.classList.remove('hidden');
-    tone(880, 0.4, 'triangle', 0.1, 1320);
+    sfx('groggyReady');
   }
   function doGroggy() {
     var g = game;
@@ -983,7 +1358,7 @@
     g.groggyFrom = { x: g.player.x, y: g.player.y };
     g.gPhase = 'cat';
     elGroggy.classList.add('hidden');
-    tone(500, 0.3, 'sine', 0.08, 1000);
+    sfx('groggyGo');
   }
   function endGroggyAnim() {
     var g = game;
@@ -993,7 +1368,7 @@
     g.boss.phase = 'stunned'; g.boss.attack = null; g.boss.dash = null;
     damageBoss(GROGGY_HIT, '그로기!');
     g.fx.push({ kind: 'ult', x: g.boss.x, y: g.boss.y, t: 0.6, color: '#ff7043' });
-    tone(120, 0.6, 'sawtooth', 0.14, 40);
+    sfx('groggyHit');
   }
 
   // ===== 갱신 =====
@@ -1021,9 +1396,9 @@
       var ph = groggyPhase();
       if (ph !== g.gPhase) {
         g.gPhase = ph;
-        if (ph === 'burst') { g.flash = 0.2; tone(160, 0.5, 'sawtooth', 0.12, 60); tone(700, 0.2, 'square', 0.06, 1400); }
-        if (ph === 'eyes') tone(300, 0.25, 'triangle', 0.07, 1200);
-        if (ph === 'bind') tone(1320, 0.3, 'sine', 0.08, 1760);
+        if (ph === 'burst') { g.flash = 0.2; sfx('groggyBurst'); }
+        if (ph === 'eyes') sfx('groggyEyes');
+        if (ph === 'bind') sfx('groggyBind');
       }
       if (g.stateT >= GROGGY_ANIM) endGroggyAnim();
       return;
@@ -1140,13 +1515,13 @@
     var c = g.chars[g.cur];
     c.hp -= 1;
     g.hurt = 0.3;
-    tone(140, 0.15, 'sawtooth', 0.1, 70);
+    sfx('hurt');
     if (c.hp <= 0) {
       // 쓰러지면 다음 순서의 살아 있는 캐릭터가 바로 나온다
       var next = nextAlive(g.cur);
       if (next < 0) { finish(false, '셋이 모두 쓰러졌다'); return; }
       g.cur = next;
-      tone(300, 0.3, 'triangle', 0.08, 150);
+      sfx('down');
     }
   }
   function nextAlive(from) {
@@ -1225,7 +1600,7 @@
         b.attack = makeAttack(idx);
         b.phase = 'telegraph';
         b.t = TELEGRAPH;
-        tone(PATTERNS[idx].color === 'red' ? 330 : 880, 0.12, 'sine', 0.06);
+        sfx('telegraph', PATTERNS[idx].color);
       }
     } else if (b.phase === 'telegraph') {
       if (b.t <= 0) {
@@ -1237,7 +1612,7 @@
             ty: clamp(a.oy + a.dir.y * a.p.len, -FLOOR + BOSS_R, FLOOR - BOSS_R) };
         }
         if (!a.countered && inAttack(a, g.player.x, g.player.y)) hitPlayer();
-        tone(a.p.id === 'burst' ? 90 : 160, 0.2, 'square', 0.08, 60);
+        sfx('bossHit', a.p.id === 'ring' ? 'slam' : a.p.id);
         b.phase = 'active';
         b.t = a.p.id === 'dash' ? DASH_TIME : ACTIVE;
         spawnBossFx(a);
@@ -2038,7 +2413,8 @@
       k = 1 - g.swing.t / g.swing.d; e = Math.sin(Math.PI * k); i = g.swing.i;
       if (ci === 0) { if (i === 0) P.r.ra = -1.3 * e; else if (i === 1) P.r.la = -1.0 * e; else { P.r.tail = -1.4 * e; P.r.wl = 0.3 * e; P.r.wr = -0.3 * e; } }
       else if (ci === 1) { if (i === 0) P.r.ra = -1.1 * e; else if (i === 1) P.r.la = -0.9 * e; else { P.r.la = 1.3 * e; P.r.ra = -1.3 * e; } }
-      else { if (i === 0) { P.dx.fa = -34 * e; P.dy.fa = 4 * e; } else if (i === 1) { P.dx.ga = -60 * e; P.dy.ga = -14 * e; } else { P.r.fl = 1.0 * e; P.r.bl = -0.1 * e; } }
+      // 초록은 그림이 오른쪽을 본다 (2026-11-23 사용자 확인): 잽은 오른쪽 주먹(ga), 스트레이트는 왼쪽 주먹(fa)을 오른쪽으로, 앞차기는 오른쪽 다리(bl)
+      else { if (i === 0) { P.dx.ga = 34 * e; P.dy.ga = 4 * e; } else if (i === 1) { P.dx.fa = 60 * e; P.dy.fa = -14 * e; } else { P.r.bl = -1.0 * e; P.r.fl = 0.1 * e; } }
     }
     var sk = lockedSkill();
     if (sk) {
@@ -2046,8 +2422,8 @@
       var win = function (c, d) { return Math.sin(Math.PI * clamp((st - c + d / 2) / d, 0, 1)); };
       if (ci === 0) { if (sk.kind === 'special') { P.r.ra = -1.0 * ee; P.r.wl = 0.3 * ee; P.r.wr = -0.3 * ee; } else { P.r.la = 1.2 * ee; P.r.ra = -1.2 * ee; P.r.wl = 0.45 * ee; P.r.wr = -0.45 * ee; } }
       else if (ci === 1) { if (sk.kind === 'special') { var up = st < 0.2 ? st / 0.2 : Math.max(0, 1 - (st - 0.2) / 0.15); P.r.la = 1.2 * up; P.r.ra = -1.2 * up; } else { P.r.ra = -1.3 * ee; P.r.la = 0.5 * ee; } }
-      else if (sk.kind === 'special') { P.dx.fa = -34 * win(0.1, 0.16); P.dx.ga = -60 * win(0.25, 0.16); P.dx.ga -= 20 * win(0.47, 0.25); P.dy.ga = -70 * win(0.47, 0.25); }
-      else { P.r.fl = st < 0.3 ? 1.1 * win(0.15, 0.3) : st < 0.7 ? 0.5 : 1.2 * win(0.8, 0.25); P.r.bl = st > 0.3 && st < 0.7 ? -0.5 : 0; }
+      else if (sk.kind === 'special') { P.dx.ga = 34 * win(0.1, 0.16); P.dx.fa = 60 * win(0.25, 0.16); P.dx.fa += 20 * win(0.47, 0.25); P.dy.fa = -70 * win(0.47, 0.25); }
+      else { P.r.bl = st < 0.3 ? -1.1 * win(0.15, 0.3) : st < 0.7 ? -0.5 : -1.2 * win(0.8, 0.25); P.r.fl = st > 0.3 && st < 0.7 ? 0.5 : 0; }
     }
     return P;
   }
@@ -2063,11 +2439,15 @@
   }
   // 사용자 그림으로 캐릭터를 그린다: 발 가운데에 세우고, 보는 쪽으로 뒤집고, 숨쉬듯 살짝 늘었다 줄고,
   // 때릴 때는 보스 쪽으로 기울고 3타는 눌렀다 편다. 스킬 중에는 스킬 몸짓 (초록 궁극은 뛰어오름)
+  // 화면에서 캐릭터가 보는 쪽 (-1 왼쪽, 1 오른쪽): 때리는 중이면 때리는 쪽, 아니면 걷는 쪽
+  function updateFace() {
+    var g = game, fd = g.swing ? g.swing.dir : g.facing, sxd = fd.x - fd.y;
+    if (Math.abs(sxd) > 0.05) g.faceLeft = sxd < 0;
+    return g.faceLeft ? -1 : 1;
+  }
   function drawCharImage(ci, lx, ly) {
     var g = game;
-    var fd = g.swing ? g.swing.dir : g.facing;
-    var sxd = fd.x - fd.y;
-    if (Math.abs(sxd) > 0.05) g.faceLeft = sxd < 0;
+    updateFace();
     var lsk = lockedSkill();
     var ground = project(g.player.x + lx, g.player.y + ly, 0);
     ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -2158,7 +2538,7 @@
       if (!dead && !active) {
         ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
         ctx.fillStyle = c.tagCd > 0 ? '#9e9e9e' : '#80deea';
-        ctx.fillText(c.tagCd > 0 ? '태그 ' + c.tagCd.toFixed(1) : '태그 OK', x + CARD_W - 6, y0 + 20);
+        ctx.fillText(c.tagCd > 0 ? '태그 ' + c.tagCd.toFixed(1) : '태그 가능', x + CARD_W - 6, y0 + 20);
       }
       for (var k = 0; k < CHAR_HP; k++) {
         ctx.fillStyle = k < c.hp ? '#66bb6a' : '#333';
@@ -2306,10 +2686,10 @@
   }
 
   // ===== 메인 루프 =====
-  function frame(ts) {
-    var dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0;
+  // 한 틱. 일시정지 중에는 아무것도 흐르지 않는다 (시계, 보스, 쿨타임, 반짝이는 장식까지)
+  function tick(dt) {
+    if (paused) return;
     ANIM += dt;
-    lastTs = ts;
     var slowed = false;
     if (game) {
       if (game.slow > 0) { game.slow -= dt; slowed = true; }
@@ -2318,6 +2698,11 @@
     }
     update(slowed ? dt * SLOW_SCALE : dt, slowed);
     updateCamera(dt);
+  }
+  function frame(ts) {
+    var dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0;
+    lastTs = ts;
+    tick(dt);
     draw();
     requestAnimationFrame(frame);
   }
@@ -2329,19 +2714,13 @@
     window.__G2_TEST_HOOK__({
       getState: function () { return state; },
       getGame: function () { return game; },
-      step: function (dt) { // frame 과 같은 순서로 한 틱 돌린다
-        var slowed = false;
-        if (game) {
-          if (game.slow > 0) { game.slow -= dt; slowed = true; }
-          game.flash = Math.max(0, game.flash - dt);
-          if (!slowed) game.zoom += (1 - game.zoom) * Math.min(1, dt * 8);
-        }
-        update(slowed ? dt * SLOW_SCALE : dt, slowed);
-        updateCamera(dt);
-      },
+      step: function (dt) { tick(dt); }, // frame 과 같은 한 틱
+      isPaused: function () { return paused; },
+      sfx: sfx, audioErr: function () { return audioErr; },
+      menuOpen: function () { return { title: titleMenu.isOpen(), ranking: rankingMenu.isOpen(), pause: pauseMenu.isOpen() }; },
       key: function (k) { onKeyDown({ key: k, preventDefault: function () {} }); },
       keyUp: function (k) { onKeyUp({ key: k }); },
-      inAttack: inAttack, makeAttack: makeAttack, draw: draw, telegraphView: telegraphView, markerOuter: markerOuter, groggyPhase: groggyPhase, charRigs: CHAR_RIGS, charParts: CHAR_PARTS, charPose: charPose, attackReach: attackReach, comboDmg: comboDmg, benchView: benchView, iconView: iconView, iconArt: ICON_ART, sprites: SPRITES,
+      inAttack: inAttack, makeAttack: makeAttack, draw: draw, telegraphView: telegraphView, markerOuter: markerOuter, groggyPhase: groggyPhase, charRigs: CHAR_RIGS, charParts: CHAR_PARTS, charPose: charPose, charFace: CHAR_FACE, updateFace: updateFace, attackReach: attackReach, comboDmg: comboDmg, benchView: benchView, iconView: iconView, iconArt: ICON_ART, sprites: SPRITES,
       consts: { LIMIT: LIMIT, BOSS_HP: BOSS_HP, GROGGY_NEED: GROGGY_NEED, TAG_CD: TAG_CD, DODGE_CD: DODGE_CD, SPECIAL_CD: SPECIAL_CD, ULT_MAX: ULT_MAX, CHAR_HP: CHAR_HP, TELEGRAPH: TELEGRAPH, RANGE_SHOW: RANGE_SHOW, GROGGY_TIME: GROGGY_TIME, GROGGY_ANIM: GROGGY_ANIM, INTRO_TIME: INTRO_TIME, HITSTOP: HITSTOP, SLOW_SCALE: SLOW_SCALE, START_DIST: START_DIST, BOSS_R: BOSS_R, PLAYER_R: PLAYER_R, ATTACK_RANGE: ATTACK_RANGE, BOSS_H: BOSS_H, PATTERNS: PATTERNS, TAG_RANGE: TAG_RANGE, DASH_TIME: DASH_TIME, BOSS_R: BOSS_R, COMBO_DMG: COMBO_DMG, COMBO_CD: COMBO_CD, COMBO_RESET: COMBO_RESET, ZOOM: ZOOM, MARK_S: MARK_S, GROGGY_PHASES: GROGGY_PHASES, SKILLS: SKILLS, SNOW_SLOW: SNOW_SLOW, SNOW_TIME: SNOW_TIME, SKILL_INVULN: SKILL_INVULN, FIRE: FIRE }
     });
   }
