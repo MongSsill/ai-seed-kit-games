@@ -434,7 +434,7 @@
   // 그림체를 골렘 쪽에 맞추려고 AI 가 그린 40 x 64 도트 대신 쓴다. 그림을 못 읽으면 예전 도트 그림
   var CHAR_FILES = ['assets/char-red.png', 'assets/char-blue.png', 'assets/char-green.png'];
   var CHAR_ANCHOR_X = [0.58, 0.55, 0.6]; // 그림 가로에서 발 가운데 자리
-  var CHAR_FACE = [1, 1, 1];             // 그림이 원래 보는 쪽 (1 오른쪽, -1 왼쪽). 눈 짐작으로 정하지 않고 사용자가 확인한 값만 쓴다 (검사 "보는쪽"이 지킴). 파랑 오른쪽 (장부 65), 초록 오른쪽 (2026-11-23 사용자 확인 "오른쪽이야". 장부 67 에서 AI 가 왼쪽으로 정했다가 거꾸로 걸음, 장부 72)
+  var CHAR_FACE = [1, 1, 1];             // 그림이 원래 보는 쪽 (1 오른쪽, -1 왼쪽). 눈 짐작으로 정하지 않고 사용자가 확인한 값만 쓴다 (검사 "보는쪽"이 지킴). 빨강 오른쪽 (2026-11-24 사용자 확인 "빨강은 문제가 없었어", 장부 78), 파랑 오른쪽 (장부 65), 초록 오른쪽 (2026-11-23 사용자 확인 "오른쪽이야". 장부 67 에서 AI 가 왼쪽으로 정했다가 거꾸로 걸음, 장부 72)
   // 캐릭터를 부위로 잘라 움직인다 (2026-11-22 걷기와 캐릭터마다 기본 공격 모션). 그림 좌표 (높이 320), pivot 은 어깨·엉덩이·날개 뿌리·꼬리 뿌리 (눈금을 그려 잼)
   // order: 0 몸 뒤, 2 몸 앞, 3 맨 앞. 겹치는 칸은 order 가 큰 부위가 가진다. 파랑은 다리가 드레스에 가려 팔만 자른다
   var CHAR_PARTS = [
@@ -963,7 +963,7 @@
       key: function (e) {
         if (!open) return false;
         var k = e.key;
-        if (k === 'Escape') { if (onEsc) onEsc(); return true; }
+        if (k === 'Escape') { if (onEsc && !e.repeat) onEsc(); return true; } // 누르고 있어 반복되는 Esc 는 무시 (2026-11-24 reviewer: 길게 누르면 일시정지가 바로 풀림)
         if (k === 'Enter' || k === ' ') { if (e.preventDefault) e.preventDefault(); if (!e.repeat) onChoose(sel); return true; }
         if (k === 'ArrowUp' || k === 'ArrowDown') {
           if (e.preventDefault) e.preventDefault();
@@ -2758,7 +2758,7 @@
       isPaused: function () { return paused; },
       sfx: sfx, audioErr: function () { return audioErr; },
       menuOpen: function () { return { title: titleMenu.isOpen(), ranking: rankingMenu.isOpen(), pause: pauseMenu.isOpen() }; },
-      key: function (k) { onKeyDown({ key: k, preventDefault: function () {} }); },
+      key: function (k) { onKeyDown({ key: k, preventDefault: function () {} }); }, keyRepeat: function (k) { onKeyDown({ key: k, repeat: true, preventDefault: function () {} }); },
       keyUp: function (k) { onKeyUp({ key: k }); },
       inAttack: inAttack, makeAttack: makeAttack, draw: draw, telegraphView: telegraphView, markerOuter: markerOuter, groggyPhase: groggyPhase, charRigs: CHAR_RIGS, charParts: CHAR_PARTS, charPose: charPose, charFace: CHAR_FACE, updateFace: updateFace, silCount: function () { return silCount; }, silPassing: function () { return silPass; }, attackReach: attackReach, comboDmg: comboDmg, benchView: benchView, iconView: iconView, iconArt: ICON_ART, sprites: SPRITES,
       consts: { LIMIT: LIMIT, BOSS_HP: BOSS_HP, GROGGY_NEED: GROGGY_NEED, TAG_CD: TAG_CD, DODGE_CD: DODGE_CD, SPECIAL_CD: SPECIAL_CD, ULT_MAX: ULT_MAX, CHAR_HP: CHAR_HP, TELEGRAPH: TELEGRAPH, RANGE_SHOW: RANGE_SHOW, GROGGY_TIME: GROGGY_TIME, GROGGY_ANIM: GROGGY_ANIM, INTRO_TIME: INTRO_TIME, HITSTOP: HITSTOP, SLOW_SCALE: SLOW_SCALE, START_DIST: START_DIST, BOSS_R: BOSS_R, PLAYER_R: PLAYER_R, ATTACK_RANGE: ATTACK_RANGE, BOSS_H: BOSS_H, PATTERNS: PATTERNS, TAG_RANGE: TAG_RANGE, DASH_TIME: DASH_TIME, BOSS_R: BOSS_R, COMBO_DMG: COMBO_DMG, COMBO_CD: COMBO_CD, COMBO_RESET: COMBO_RESET, ZOOM: ZOOM, MARK_S: MARK_S, GROGGY_PHASES: GROGGY_PHASES, SKILLS: SKILLS, SNOW_SLOW: SNOW_SLOW, SNOW_TIME: SNOW_TIME, SKILL_INVULN: SKILL_INVULN, FIRE: FIRE }

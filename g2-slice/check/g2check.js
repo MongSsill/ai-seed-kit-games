@@ -520,7 +520,7 @@ function fresh(search, seed) {
 // 그림이 원래 보는 쪽은 눈 짐작이 아니라 사용자가 확인한 값이다. 이 값을 바꾸려면 사용자에게 먼저 묻는다.
 (function () {
   var G = '보는쪽';
-  var CONFIRMED = [1, 1, 1]; // 빨강 오른쪽 (2026-11-22 부터 지적 없음), 파랑 오른쪽 (장부 65 "진행방향과 반대방향"), 초록 오른쪽 (2026-11-23 "오른쪽이야")
+  var CONFIRMED = [1, 1, 1]; // 빨강 오른쪽 (2026-11-24 사용자 확인 "빨강은 문제가 없었어", 장부 78), 파랑 오른쪽 (장부 65 "진행방향과 반대방향"), 초록 오른쪽 (2026-11-23 "오른쪽이야")
   var h = fresh('', 84);
   [0, 1, 2].forEach(function (ci) {
     var nm = ['빨강', '파랑', '초록'][ci];
@@ -573,6 +573,8 @@ function fresh(search, seed) {
   check(G, '일시정지 중에는 시계·보스·캐릭터가 멈춤', g.clock === clock && g.boss.x === bossX && g.boss.y === bossY, [clock, g.clock]);
   h.key('a');
   check(G, '일시정지 중 A 는 공격하지 않음', !g.swing);
+  h.keyRepeat('Escape');
+  check(G, '누르고 있어 반복되는 Esc 로는 풀리지 않음', h.isPaused() && h.menuOpen().pause);
   h.key('Escape');
   check(G, '다시 Esc 로 계속하기', !h.isPaused() && !h.menuOpen().pause);
   h.run(0.5);

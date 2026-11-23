@@ -1,6 +1,6 @@
 // ===== 게임 밖 편의 기능 원본: 고르기 메뉴 (멈추기, 시작 화면 메뉴, 랭킹 보기 등) =====
 // CLAUDE.md 폴더 칸: 이 원본을 게임마다 game.js 에 복사해 따로 고쳐 쓴다. 고친 것은 원본에 되돌려 넣지 않아도 된다.
-// 처음 쓴 곳: 게임 1 일시정지 (g1-copy/game.js), 원본으로 뗀 것은 2026-11-23 게임 2 를 만들며.
+// 처음 쓴 곳: 2026-11-23 게임 2 (g2-slice) 일시정지·시작 화면 메뉴·랭킹 보기. 게임 1 일시정지(g1-copy/game.js)의 동작(계속하기, 다시 하기, 시작 화면)을 본떴지만 게임 1 은 이 코드를 쓰지 않는다.
 //
 // 쓰는 법
 //   var pauseMenu = makeMenu(document.getElementById('pause'),
@@ -31,7 +31,7 @@ function makeMenu(overlay, buttons, onChoose, onEsc) {
     key: function (e) {
       if (!open) return false;
       var k = e.key;
-      if (k === 'Escape') { if (onEsc) onEsc(); return true; }
+      if (k === 'Escape') { if (onEsc && !e.repeat) onEsc(); return true; } // 누르고 있어 반복되는 Esc 는 무시 (2026-11-24 reviewer: 길게 누르면 일시정지가 바로 풀림)
       if (k === 'Enter' || k === ' ') { if (e.preventDefault) e.preventDefault(); if (!e.repeat) choose(sel); return true; }
       if (k === 'ArrowUp' || k === 'ArrowDown') {
         if (e.preventDefault) e.preventDefault();
