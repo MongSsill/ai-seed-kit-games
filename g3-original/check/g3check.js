@@ -32,7 +32,7 @@ run(function () {   // 2026-11-24 사용자: 떨어지면 체력 1칸을 잃고 
   start(flat(function (m) { for (var c = 20; c < 30; c++) for (var r = 14; r < 17; r++) m.g[r][c] = ' '; }));
   P().x = 17 * TS; P().y = 13 * TS - P().h; sim(0.2); var sx = P().x;
   P().x = 24 * TS; P().y = 10 * TS; var tt = 0; while (G().hp === 3 && tt < 200) { g3.update(1 / 60); tt++; }
-  ok(G().hp === 2 && G().hitThisRun && Math.abs(P().x - sx) < 2 && G().runTime > 0.5, '틈에 떨어지면 체력 1칸을 잃고 마지막으로 디딘 자리에서 다시', 'hp ' + G().hp + ' x ' + Math.round(P().x) + ' (디딘 자리 ' + Math.round(sx) + ')');
+  ok(G().hp === 2 && G().hitThisRun && P().x <= sx + 1 && P().x >= sx - 1.5 * TS - 1 && P().lockIn > 0 && G().runTime > 0.5, '틈에 떨어지면 체력 1칸을 잃고 마지막으로 디딘 자리(낭떠러지 끝이면 왔던 쪽으로 한 칸 반 안쪽)에서 다시, 잠깐 방향키를 받지 않음', 'hp ' + G().hp + ' x ' + Math.round(P().x) + ' (디딘 자리 ' + Math.round(sx) + ')');
   G().hp = 1; P().inv = 0; P().x = 24 * TS; P().y = 10 * TS; tt = 0; while (G().hp > 0 && tt < 200) { g3.update(1 / 60); tt++; } sim(1.0);
   ok(G().hp === 3 && G().runTime < 1.0 && Math.abs(P().x - 5 * TS - 4) < 6, '마지막 체력에서 떨어지면 스테이지 처음에서 다시', 'hp ' + G().hp + ' x ' + Math.round(P().x));
 });
@@ -161,7 +161,7 @@ group = '[필살기]';
 run(function () {
   start(flat(function (m) { m.ent('g', 12, 13); m.ent('g', 40, 13); })); G().gauge = 100; g3.press('ult'); sim(0.05); clearKeys();
   ok(!!G().ult && G().gauge === 0, 'E 로 합동 필살기, 게이지 0 (T11)');
-  sim(3.2); ok(!G().ult, '합동 필살기 체인 에코 ver.2 는 3.1초 뒤 끝난다 (2026-11-24)'); var near = G().enemies.filter(function (e) { return e.x < 20 * TS; })[0], far = G().enemies.filter(function (e) { return e.x > 30 * TS; })[0];
+  sim(3.6); ok(!G().ult, '합동 필살기 체인 에코 ver.2 는 3.1초 (맞을 때 멈칫 0.3초를 더해 약 3.4초) 뒤 끝난다 (2026-11-24)'); var near = G().enemies.filter(function (e) { return e.x < 20 * TS; })[0], far = G().enemies.filter(function (e) { return e.x > 30 * TS; })[0];
   ok(!near || near.hp <= 0 || near.dead, '가까운 적은 필살기에 맞는다'); ok(far && far.hp === 3, '화면 밖 먼 적은 맞지 않는다 (범위: 화면 전체)');
   start(flat()); G().gauge = 60; g3.press('ult'); sim(0.05); clearKeys(); ok(!G().ult, '게이지가 차지 않으면 쓸 수 없다');
 });
