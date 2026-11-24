@@ -2,174 +2,168 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Do+Hyeon&family=Gowun+Dodum&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* 레이아웃: 사원 돌판 위에 하늘색 룬 선으로 이은 세로 기록. 게임 화면(돌, 금빛 글자, 룬빛)을 그대로 가져온 한 가지 어두운 모습.
-   큰 제목 하나만 장식 글씨체, 나머지 제목은 읽기 쉬운 본문 글씨체의 굵은 두께 (2026-11-24 "도트"의 ㅌ 이 뭉개 보인다는 지적) */
+/* 레이아웃: 게임 속 HUD 판처럼 금빛 테두리와 도트 모서리를 단 판을, 밤 숲의 청록 바탕 위에 세로로 쌓는다.
+   불(주황)·얼음(하늘)·바람(초록) 세 속성 색이 판마다 띠로 흐르고, 제목은 게임 제목과 같은 도트 글꼴 Jersey 10 + 금빛 그라데이션 */
 :root {
-  --stone-0: #15161d;   /* 바닥 */
-  --stone-1: #1f212b;   /* 판 */
-  --stone-2: #2c2e3a;   /* 판 테두리 안 */
-  --edge: #5d5b6c;      /* 돌 테두리 */
-  --text: #ece8f2;
-  --muted: #a6a1b5;
-  --gold: #ffd54f;      /* 금빛 글자 (게임 버튼) */
-  --rune: #4dd0e1;      /* 하늘색 룬 */
-  --ember: #ff7a45;
-  --ok: #8bd88f;
-  --font-display: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
-  --font-head: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --night: #0c1a1a;      /* 밤 숲 바탕 */
+  --night-2: #12262a;    /* 판 */
+  --night-3: #193339;    /* 판 안 칸 */
+  --gold: #ffd24a;       /* HUD 금빛 */
+  --gold-dk: #8a5a16;    /* 금빛 테두리 그림자 */
+  --text: #eef4ea;
+  --muted: #a9bfb6;
+  --fire: #ff8a3d;
+  --ice: #7fd8ff;
+  --wind: #7dffc0;
+  --leaf: #5fbf5a;
+  --font-pixel: "Jersey 10", "Do Hyeon", "Malgun Gothic", sans-serif;
+  --font-head: "Do Hyeon", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  --font-body: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body {
-  background: var(--stone-0);
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgba(127, 216, 255, 0.12), transparent 60%),
+    radial-gradient(800px 500px at 0% 40%, rgba(95, 191, 90, 0.10), transparent 60%),
+    var(--night);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
-  line-height: 1.7;
+  line-height: 1.75;
   word-break: keep-all;          /* 한국어를 낱말 단위로 줄바꿈 */
   overflow-wrap: break-word;
 }
-.wrap {
-  max-width: 1040px;
-  margin: 0 auto;
-  padding-block: 0 72px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-}
+.wrap { max-width: 1040px; margin: 0 auto; padding-block: 0 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { text-wrap: balance; margin: 0; }
-h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.15; letter-spacing: 0.02em; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 22px rgba(255, 213, 79, 0.25); }
-h2 { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.45rem, 3.4vw, 1.95rem); line-height: 1.3; letter-spacing: -0.01em; }
-h3 { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; line-height: 1.4; }
+h2 { font-family: var(--font-head); font-weight: 400; font-size: clamp(1.6rem, 3.6vw, 2.1rem); line-height: 1.25; color: #fff6d6; }
+h3 { font-family: var(--font-head); font-weight: 400; font-size: 1.22rem; line-height: 1.35; color: #fff6d6; }
 p { margin: 0; }
-a { color: var(--rune); }
-a:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
-.mono { font-family: var(--font-mono); font-size: 0.86em; color: var(--rune); }
+a { color: var(--ice); }
+a:focus-visible, .btn:focus-visible { outline: 3px solid var(--wind); outline-offset: 3px; }
+.mono { font-family: var(--font-pixel); font-size: 1.15em; color: var(--ice); letter-spacing: 0.03em; }
 .muted { color: var(--muted); }
 
-/* 머리 */
-.hero { padding-block: 48px 28px; display: grid; gap: 22px; }
-.eyebrow { font-size: 0.82rem; letter-spacing: 0.16em; color: var(--rune); }
-.lead {
-  max-width: 46em;
-  padding: 18px 22px;
-  font-size: clamp(1.05rem, 2.2vw, 1.22rem);
-  line-height: 1.75;
-  color: var(--text);
-  background: linear-gradient(90deg, rgba(77, 208, 225, 0.09), rgba(77, 208, 225, 0));
-  border-left: 3px solid var(--rune);
-  display: grid;
-  gap: 10px;
-}
+/* 머리: 게임 제목과 같은 도트 금빛 글자 */
+.hero { padding-block: 44px 28px; display: grid; gap: 22px; }
+.eyebrow { font-family: var(--font-pixel); font-size: 1.25rem; letter-spacing: 0.08em; color: var(--ice); }
+.eyebrow b { color: var(--fire); font-weight: 400; } .eyebrow i { color: var(--wind); font-style: normal; }
+h1 { display: grid; gap: 2px; }
+h1 .logo { font-family: "Jersey 10", var(--font-head); font-weight: 400; font-size: clamp(3.4rem, 11vw, 6.4rem); line-height: 0.95; letter-spacing: 0.06em;
+  background: linear-gradient(180deg, #fffbe0 0%, #ffd24a 50%, #ff9a3a 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(2px 0 0 #4a2600) drop-shadow(-2px 0 0 #4a2600) drop-shadow(0 3px 0 #4a2600) drop-shadow(0 0 16px rgba(255, 200, 80, 0.45)); }
+h1 .sub { font-family: var(--font-head); font-weight: 400; font-size: clamp(1.5rem, 4vw, 2.2rem); color: #fff6d6; }
+.tri { display: flex; height: 6px; max-width: 360px; }
+.tri span { flex: 1; } .tri span:nth-child(1) { background: var(--fire); } .tri span:nth-child(2) { background: var(--ice); } .tri span:nth-child(3) { background: var(--wind); }
+.lead { max-width: 46em; display: grid; gap: 10px; font-size: clamp(1.04rem, 2.2vw, 1.18rem); }
 .lead strong { color: var(--gold); font-weight: 700; }
-/* 바로가기: 플레이 화면 아래 가운데에 버튼 둘만. 게임 해 보기는 금빛 석판, 저장소는 돌 석판. 올리면 떠오르고 누르면 눌림 */
+
+/* 바로가기: 게임의 긴 금빛 버튼 */
 .go { display: flex; justify-content: center; padding-block: 12px 4px; }
 .go .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 48px; padding: 0 22px; text-decoration: none;
-  font-weight: 700; font-size: 0.98rem; letter-spacing: 0.04em; color: var(--gold);
-  background: linear-gradient(#4a4c5a, #2c2e38);
-  border: 2px solid var(--edge); border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 0 #0c0d12, 0 6px 12px rgba(0, 0, 0, 0.45);
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, color .12s ease;
-}
-.btn svg { width: 16px; height: 16px; flex: none; color: var(--rune); }
-.btn:hover { transform: translateY(-2px); border-color: var(--rune); color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 5px 0 #0c0d12, 0 0 16px rgba(77, 208, 225, 0.45); }
-.btn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 #0c0d12; }
-.btn.primary { color: #2a1d00; background: linear-gradient(#ffe082, #f5b82e); border-color: #b8860b; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
-.btn.primary svg { color: #2a1d00; }
-.btn.primary:hover { color: #1a1200; border-color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 5px 0 #6b4e00, 0 0 18px rgba(255, 213, 79, 0.5); }
-.btn.primary:active { box-shadow: 0 1px 0 #6b4e00; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 26px; text-decoration: none;
+  font-family: var(--font-head); font-size: 1.12rem; color: #fff6d6; background: linear-gradient(#2a4b52, #183136);
+  border: 3px solid var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold-dk), 0 6px 14px rgba(0, 0, 0, 0.5);
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  transition: transform .12s ease, filter .12s ease; }
+.btn svg { width: 16px; height: 16px; flex: none; color: var(--ice); }
+.btn:hover { transform: translateY(-2px); filter: brightness(1.15); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { color: #2a1700; background: linear-gradient(#ffe68a, #f2a93a); }
+.btn.primary svg { color: #2a1700; }
 @media (max-width: 560px) { .go .btns, .go .btn { width: 100%; } }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover, .btn:active { transform: none; } }
 
-/* 플레이 화면 */
+/* 플레이 화면: 도트 모서리 금테 */
 .shots { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
 .shots .side { display: grid; gap: 12px; }
 figure { margin: 0; min-width: 0; }
-.frame { position: relative; border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 0 18px rgba(77, 208, 225, 0.18), 0 8px 20px rgba(0, 0, 0, 0.6); background: var(--stone-1); }
+.frame { position: relative; border: 3px solid var(--gold); background: var(--night-2); box-shadow: 0 0 0 3px var(--night), 0 0 0 4px var(--gold-dk), 0 10px 22px rgba(0, 0, 0, 0.55); }
 .frame img { display: block; width: 100%; height: auto; aspect-ratio: 960 / 544; object-fit: cover; max-width: 100%; }
-figcaption { font-size: 0.84rem; color: var(--muted); padding-top: 6px; line-height: 1.5; }
+figcaption { font-size: 0.86rem; color: var(--muted); padding-top: 8px; line-height: 1.5; }
 .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 
-/* 판 (섹션) */
-.slab { position: relative; margin-top: 56px; padding: 28px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--stone-1), #191a22); border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 10px 26px rgba(0, 0, 0, 0.55); display: grid; gap: 20px; }
-.slab::before, .slab::after { content: ""; position: absolute; top: -9px; width: 12px; height: 12px; background: var(--rune); border: 2px solid var(--stone-0); transform: rotate(45deg); box-shadow: 0 0 10px var(--rune); }
-.slab::before { left: -9px; }
-.slab::after { right: -9px; }
+/* 판 (섹션): HUD 판 — 금테, 위쪽 세 속성 띠, 네 모서리 도트 보석 */
+.slab { position: relative; margin-top: 56px; padding: 30px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--night-2), #0f2124);
+  border: 3px solid var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold-dk), 0 12px 28px rgba(0, 0, 0, 0.5); display: grid; gap: 20px; }
+.slab::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: linear-gradient(90deg, var(--fire) 0 33.3%, var(--ice) 33.3% 66.6%, var(--wind) 66.6% 100%); }
+.slab::after { content: ""; position: absolute; top: -11px; left: 50%; width: 14px; height: 14px; margin-left: -7px; background: var(--ice); box-shadow: -22px 0 0 var(--fire), 22px 0 0 var(--wind); }
 .slab-head { display: grid; gap: 8px; }
-.skill { display: inline-flex; align-self: start; justify-self: start; font-size: 0.78rem; letter-spacing: 0.08em; color: var(--stone-0); background: var(--rune); padding: 3px 10px; border-radius: 2px; font-weight: 700; }
+.skill { display: inline-flex; align-self: start; justify-self: start; font-family: var(--font-pixel); font-size: 1.05rem; letter-spacing: 0.06em; color: var(--night); background: var(--gold); padding: 0 10px; }
+.slab:nth-of-type(3n+1) .skill { background: var(--fire); } .slab:nth-of-type(3n+2) .skill { background: var(--ice); } .slab:nth-of-type(3n) .skill { background: var(--wind); }
 .slab-head p { max-width: 46em; color: var(--muted); }
 
 /* 역할 */
 .roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.role { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
-.role .who { font-weight: 700; font-size: 1.08rem; }
-.role.me .who { color: var(--gold); }
-.role.ai .who { color: var(--rune); }
-.role.rv .who { color: #c9b5ff; }
-.role.ck .who { color: var(--ok); }
+.role { padding: 16px; background: var(--night-3); border-left: 4px solid var(--gold); display: grid; gap: 8px; align-content: start; min-width: 0; }
+.role .who { font-family: var(--font-head); font-size: 1.25rem; }
+.role.me { border-color: var(--gold); } .role.me .who { color: var(--gold); }
+.role.ai { border-color: var(--ice); } .role.ai .who { color: var(--ice); }
+.role.rv { border-color: #c9b5ff; } .role.rv .who { color: #c9b5ff; }
+.role.ck { border-color: var(--wind); } .role.ck .who { color: var(--wind); }
 .role ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
 .loop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.95rem; }
-.loop .step { padding: 6px 12px; border: 1px solid var(--edge); border-radius: 2px; background: #23252f; }
-.loop .arrow { color: var(--rune); }
+.loop .step { padding: 6px 12px; background: var(--night-3); border: 2px solid #2f5157; }
+.loop .arrow { color: var(--gold); font-family: var(--font-pixel); font-size: 1.3rem; }
 
 /* 단계 */
 .track { display: grid; }
-.stage { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px dashed #3d3f4d; }
+.stage { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 2px dotted #2f5157; }
 .stage:first-child { border-top: 0; }
-.stage .tag { font-weight: 700; font-size: 1.05rem; color: var(--gold); line-height: 1.3; }
-.stage .tag small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
+.stage .tag { font-family: var(--font-pixel); font-size: 1.8rem; color: var(--gold); line-height: 1; }
+.stage .tag small { display: block; font-family: var(--font-head); font-size: 0.95rem; color: var(--muted); margin-top: 4px; }
 .stage p { max-width: 46em; }
-.chain { display: grid; gap: 6px; padding: 14px 16px; background: #1a1b23; border-left: 3px solid var(--rune); }
-.chain .t { font-size: 0.82rem; color: var(--muted); }
-.chain div { font-size: 0.93rem; }
+.chain { display: grid; gap: 6px; padding: 14px 16px; background: var(--night-3); border-left: 4px solid var(--fire); }
+.chain .t { font-size: 0.84rem; color: var(--muted); }
+.chain div { font-size: 0.94rem; }
 .chain q { color: var(--gold); quotes: "“" "”"; }
 
 /* 변화 */
 .shift { display: grid; gap: 12px; }
-.change { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 10px; align-items: stretch; }
-.change .before, .change .after { padding: 14px 16px; border-radius: 3px; min-width: 0; }
-.change .before { background: #241f24; border: 1px solid #4a3a3f; }
-.change .after { background: #1b2629; border: 1px solid #2f5960; }
-.change .lbl { font-size: 0.74rem; letter-spacing: 0.1em; color: var(--muted); display: block; margin-bottom: 4px; }
+.change { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.change .before, .change .after { padding: 14px 16px; min-width: 0; }
+.change .before { background: #1d2224; border: 2px dashed #46545a; }
+.change .after { background: #143238; border: 2px solid var(--ice); }
+.change .lbl { font-family: var(--font-pixel); font-size: 1.05rem; letter-spacing: 0.06em; color: var(--muted); display: block; margin-bottom: 2px; }
+.change .after .lbl { color: var(--ice); }
 .change h3 { margin-bottom: 4px; }
-.change .mid { display: grid; place-items: center; color: var(--rune); font-size: 1.3rem; }
+.change .mid { display: grid; place-items: center; color: var(--gold); font-family: var(--font-pixel); font-size: 1.8rem; }
 .change p { font-size: 0.94rem; }
 
 /* 사례 */
 .scenes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.scene { padding: 18px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 10px; align-content: start; min-width: 0; }
-.scene .kind { font-size: 0.76rem; letter-spacing: 0.08em; font-weight: 700; }
+.scene { padding: 18px; background: var(--night-3); border-top: 4px solid var(--gold); display: grid; gap: 10px; align-content: start; min-width: 0; }
+.scene .kind { font-family: var(--font-pixel); font-size: 1.05rem; letter-spacing: 0.05em; }
 .scene .kind.co { color: var(--gold); }
-.scene .kind.auto { color: var(--rune); }
+.scene .kind.auto { color: var(--wind); }
+.scenes + .subhead + .scenes .scene { border-top-color: var(--wind); }
 .scene ol { margin: 0; padding-left: 1.2em; font-size: 0.93rem; display: grid; gap: 4px; }
 .scene q { color: var(--gold); quotes: "“" "”"; }
-.scene .src { font-size: 0.78rem; color: var(--muted); }
-.subhead { font-size: 1.12rem; margin-top: 4px; }
+.scene .src { font-size: 0.8rem; color: var(--muted); }
+.subhead { font-size: 1.3rem; margin-top: 4px; color: var(--ice); }
 
 /* 규칙 표 */
-.tablebox { overflow-x: auto; border: 1px solid #3d3f4d; border-radius: 3px; }
+.tablebox { overflow-x: auto; border: 2px solid #2f5157; }
 table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.92rem; }
-th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid #33353f; }
-th { font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; background: #1b1c24; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid #234247; }
+th { font-family: var(--font-head); font-weight: 400; font-size: 1rem; color: var(--gold); background: #102427; }
 tr:last-child td { border-bottom: 0; }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
-.pill.good { background: rgba(139, 216, 143, 0.15); color: var(--ok); border: 1px solid rgba(139, 216, 143, 0.4); }
-.pill.bad { background: rgba(255, 122, 69, 0.14); color: var(--ember); border: 1px solid rgba(255, 122, 69, 0.45); }
-.pill.wait { background: rgba(166, 161, 181, 0.12); color: var(--muted); border: 1px solid rgba(166, 161, 181, 0.35); }
+.pill { display: inline-block; padding: 0 8px; font-family: var(--font-head); font-size: 0.9rem; white-space: nowrap; }
+.pill.good { background: rgba(125, 255, 192, 0.15); color: var(--wind); border: 2px solid rgba(125, 255, 192, 0.5); }
+.pill.bad { background: rgba(255, 138, 61, 0.14); color: var(--fire); border: 2px solid rgba(255, 138, 61, 0.5); }
+.pill.wait { background: rgba(169, 191, 182, 0.12); color: var(--muted); border: 2px solid rgba(169, 191, 182, 0.35); }
 
 /* 기여 */
 .split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.split .col { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.split .col { padding: 16px; background: var(--night-3); display: grid; gap: 8px; align-content: start; min-width: 0; }
+.split .col:nth-child(1) { border-top: 4px solid var(--fire); } .split .col:nth-child(2) { border-top: 4px solid var(--ice); } .split .col:nth-child(3) { border-top: 4px solid var(--wind); }
 .split ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
-.quote-me { padding: 12px 16px; border-left: 3px solid var(--gold); background: #1b1c24; }
+.quote-me { padding: 14px 18px; border: 2px solid var(--gold); background: #1a2a20; }
 .next { display: grid; gap: 8px; padding-left: 1.3em; margin: 0; }
-.foot { margin-top: 40px; font-size: 0.82rem; color: var(--muted); max-width: 46em; }
+.next li::marker { color: var(--gold); }
+.foot { margin-top: 40px; font-size: 0.84rem; color: var(--muted); max-width: 46em; }
 
 @media (max-width: 760px) {
   .shots { grid-template-columns: 1fr; }
@@ -178,7 +172,7 @@ tr:last-child td { border-bottom: 0; }
   .roles { grid-template-columns: 1fr 1fr; }
   .scenes, .split { grid-template-columns: 1fr; }
   .change { grid-template-columns: 1fr; }
-  .change .mid { transform: rotate(90deg); height: 20px; }
+  .change .mid { transform: rotate(90deg); height: 24px; }
   .stage { grid-template-columns: 1fr; gap: 4px; }
 }
 @media (max-width: 420px) { .roles { grid-template-columns: 1fr; } }
@@ -188,8 +182,9 @@ tr:last-child td { border-bottom: 0; }
 <div class="wrap">
 
   <header class="hero">
-    <span class="eyebrow">게임 3 · 창작 데모 · AI 협업 기록</span>
-    <h1>Chain Echo 작업 방식</h1>
+    <span class="eyebrow">GAME 3 · <b>FIRE</b> · ICE · <i>WIND</i> · AI 협업 기록</span>
+    <h1><span class="logo">CHAIN ECHO</span><span class="sub">작업 방식</span></h1>
+    <div class="tri" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="lead">
       <p>앞의 두 게임에서 확인한 <strong>태그의 재미</strong>를 바탕으로, 세 캐릭터를 태그로 이어 길을 여는 2D 도트 플랫포머를 만들었습니다. 스테이지 1-1부터 1-5의 보스까지, 한 판은 스테이지 하나입니다.</p>
       <p>이 페이지는 <strong>레퍼런스를 정하고 AI로 에셋을 만든 뒤, 게임의 톤에 맞게 다시 맞춰 넣은 과정</strong>과 AI와 일한 방식을 정리했습니다.</p>
