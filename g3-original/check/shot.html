@@ -20,7 +20,7 @@
   if (sc === 'door11') { g3.startLevel(0, { test: true }); var dd = g3.G.door; g3.P.x = dd.x - 6; g3.P.y = dd.y + dd.h - g3.P.h; g3.G.cam = g3.P.x - 400; sim(1.5); var q2 = new URLSearchParams(location.search); if (q2.get('open')) { g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(+q2.get('open')); } }
   if (sc === 'boss5') { var q3 = new URLSearchParams(location.search); g3.startLevel(4, { test: true }); put(60, 13); g3.P.inv = 99; sim(0.2); var bb5 = g3.G.enemies.filter(function (e) { return e.type === 'B'; })[0]; bb5.hp = 0; sim(1.2);
     var ch5 = g3.G.items.filter(function (i) { return i.type === 'C'; })[0]; if (q3.get('chest')) { g3.P.x = ch5.x; g3.P.y = ch5.y + ch5.h - g3.P.h; sim(0.05); g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(+q3.get('chest')); }
-    if (q3.get('door')) { g3.G.relicPop = null; var d5 = g3.G.door; g3.P.x = d5.x + 4; g3.P.y = d5.y + d5.h - g3.P.h; sim(0.6); if (+q3.get('door') > 0) { g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(+q3.get('door')); } } }
+    if (q3.get('door')) { g3.G.relicPop = null; var d5 = g3.G.door; g3.P.x = d5.x + 4; g3.P.y = d5.y + d5.h - g3.P.h; g3.G.cam = g3.P.x - 420; sim(0.3); if (+q3.get('door') > 0) { g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(+q3.get('door')); } } }
   if (sc === 'ultt') { var qq = new URLSearchParams(location.search); g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; g3.press('ult'); sim(+(qq.get('t') || 0.8)); }
   if (sc === 'start11') { g3.startLevel(0, { test: true }); put(4, 13); sim(0.5); }
   if (sc === 'start14') { g3.startLevel(3, { test: true }); put(5, 13); sim(0.5); }
@@ -44,6 +44,6 @@
   if (sc === 'atk') { g3.startLevel(1, { test: true }); put(31, 13); g3.P.face = 1; g3.press('form'); g3.update(1/60); g3.release('form'); g3.tag(1); sim(0.15); }
   if (sc === 'boss') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(2.4); }
   if (sc === 'boss2') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(3.3); }
-  setTimeout(function () { for (var i = 0; i < 30; i++) g3.draw(); }, 400);
+  setTimeout(function () { for (var i = 0; i < 30; i++) g3.draw(); if (/guide=1/.test(location.search) && g3.G.ult && g3.G.ult.base) { var cx = document.getElementById('game').getContext('2d'); cx.setTransform(1, 0, 0, 1, 0, 0); cx.fillStyle = '#ff00ff'; cx.fillRect(479, 0, 2, 544); cx.fillStyle = '#00ffff'; cx.fillRect(0, g3.G.ult.base - 4, 960, 1); } }, 400);   // guide=1: 화면 정가운데 선(분홍)과 캐릭터가 딛는 바닥 선(하늘)
 })();
 </script></body></html>

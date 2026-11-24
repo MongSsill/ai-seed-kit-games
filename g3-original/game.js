@@ -1259,7 +1259,7 @@ function drawDoor() {
     ctx.fillStyle = gl2; ctx.fillRect(cx - 150, by - 220, 300, 240);
     var cupsT = DOOR.cupT * 4, fi = 0;
     if (a) fi = t < cupsT ? 1 + Math.min(4, Math.floor(t / cupsT * 5)) : 6 + Math.min(11, Math.floor((t - cupsT) / (DOOR.bossOpenT + DOOR.bossLightT) * 12));
-    doorShadow(cx, by, 120); ctx.imageSmoothingEnabled = false; ctx.filter = 'brightness(0.78) saturate(0.7)'; ctx.drawImage(tinted(DIMG.b[fi], 'rgba(28,46,110,0.32)'), Math.round(bx2), Math.round(by2 + 6), Math.round(bw2), Math.round(bh2)); ctx.filter = 'none'; ctx.imageSmoothingEnabled = true; doorGrass(cx, by, bw2 * 0.8);   // 도트(2픽셀)로 줄인 그림을 부드럽게 하지 않고, 배경처럼 조금 어둡게, 밑동은 땅에 묻고 앞에 풀
+    doorShadow(cx, by, 120); ctx.imageSmoothingEnabled = false; ctx.drawImage(DIMG.b[fi],   /* 사원 벽돌 색으로 다시 칠한 그림 (어둡게 하지 않음) */ Math.round(bx2), Math.round(by2 + 6), Math.round(bw2), Math.round(bh2)); ctx.filter = 'none'; ctx.imageSmoothingEnabled = true; doorGrass(cx, by, bw2 * 0.8);   // 도트(2픽셀)로 줄인 그림을 부드럽게 하지 않고, 배경처럼 조금 어둡게, 밑동은 땅에 묻고 앞에 풀
   } else if (!G.lv.boss && DIMG.n.length === 6 && DIMG.n.every(Boolean)) {   // 보통 스테이지 문 (2026-11-24 사용자 에셋: 덩굴·꽃 돌 아치 6장 + '스테이지 클리어 포털 빛의 향연' 12장)
     var ns = 112 / 190, nw = 220 * ns, nh = 197 * ns, ok2 = a ? Math.min(1, t / DOOR.normalT) : 0, pul2 = 0.3 + Math.sin(G.time * 3) * 0.1;
     var ng = ctx.createRadialGradient(cx, by - 50, 4, cx, by - 50, 90 + ok2 * 80); ng.addColorStop(0, 'rgba(255,236,170,' + Math.min(0.8, pul2 + ok2 * 0.5) + ')'); ng.addColorStop(1, 'rgba(255,220,130,0)');
@@ -1498,10 +1498,11 @@ var SPR = { files: ['char-red', 'char-blue', 'char-green'], face: [1, 1, 1], foo
     CH2.names.forEach(function (n) { var im = newImg(); im.onload = function () { CH2.fr[ci][n] = im; CH2.count++; }; im.src = BASE + 'assets/char/' + k + '-' + n + '.png'; });
   });
   UI_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { UIIMG[n] = im; }; im.src = BASE + 'assets/ui/' + n + '.png'; });
-  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=44'; });
-  ['dragon', 'ice', 'wind', 'beam', 'boom', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=44'; })(i); });
-  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=44';
-  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=44'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
+  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=46'; });
+  [['tornado', 'tornado'], ['windStart', 'wind-start'], ['windEnd', 'wind-end']].forEach(function (p) { var im = newImg(); im.onload = function () { ULTIMG[p[0]] = im; }; im.src = BASE + 'assets/ult/' + p[1] + '.png?v=46'; });
+  ['dragon', 'ice', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : k === 'dragon' ? 3 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=46'; })(i); });
+  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=46';
+  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=46'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
 })();
 // ===== 걷기 몸짓 (2026-11-24 사용자 "슬라이드해서 움직이는 것처럼 … 걸어가는 모션을 정확하게", "팔 다리등의 움직임이 같이 들어가면"):
 // 서 있는 그림(idle0)을 윗몸·뒷다리·앞다리·뒷팔·앞팔로 나눠 움직인다. 걸음은 시간이 아니라 걸어간 거리로 맞춰 발이 미끄러지지 않게.
@@ -1885,6 +1886,11 @@ function ultSpot(x) {   // x 가까이에서 실제로 디딜 수 있는 땅 (20
   for (var i = 0; i < 14; i++) { var c = c0 + (i % 2 ? (i + 1) / 2 : -i / 2); for (var r = r0; r < ROWS; r++) if ((solidAt(c, r) || oneAt(c, r)) && !solidAt(c, r - 1)) return { x: c * TS + TS / 2, y: r * TS }; }
   return { x: x, y: P.y + P.h };
 }
+function groundAt(x, nearY) {   // x 바로 아래(nearY 위아래 3칸 안)에 디딜 땅이 있으면 그 윗면 y, 없으면 null (낭떠러지 위에는 그리지 않게)
+  var c = Math.floor(x / TS), r0 = Math.max(1, Math.floor(nearY / TS) - 3);
+  for (var r = r0; r < Math.min(ROWS, r0 + 7); r++) if ((solidAt(c, r) || oneAt(c, r)) && !solidAt(c, r - 1)) return r * TS;
+  return null;
+}
 function ultSpotR(x) {   // x 에서 오른쪽으로 처음 디딜 수 있는 땅 (셋이 겹치지 않게 나란히 설 때)
   var c0 = Math.floor(x / TS), r0 = Math.max(1, Math.floor((P.y - 4 * TS) / TS));
   for (var c = c0; c < c0 + 12; c++) for (var r = r0; r < ROWS; r++) if ((solidAt(c, r) || oneAt(c, r)) && !solidAt(c, r - 1)) return { x: c * TS + TS / 2, y: r * TS };
@@ -1907,30 +1913,28 @@ function drawUlt() {   // 월드 좌표. 화면 전체를 쓴다
     if (t >= ULT.red[1]) ultGhost(0, 'idle0', pos[0], gy[0], 1, 0.6, true);
     if (t >= ULT.blue[1]) ultGhost(1, 'idle0', pos[1], gy[1], -1, 0.6, true);
   }
-  // 2026-11-24 사용자 에셋 (g3-ref "합동 필살기 컷신/화려한 원소 VFX 애니메이션 스프라이트 시트-1"): 장면마다 6장 그림을 넘겨 그림
-  if (ultIn(t, ULT.red)) {   // ② 용의 돌진: 플레아가 왼쪽에서 불꽃 용이 되어 오른쪽으로, 땅에 불길
-    var k = ultK(t, ULT.red), fa = k > 0.85 ? (1 - k) / 0.15 : 1, dsc = 2.3, dw = 256 * dsc, dh = 204 * dsc, dx = L - dw * 0.55 + k * (W + dw * 0.3);
-    ctx.globalCompositeOperation = 'lighter';
-    for (var f = 0; f < 22; f++) { var fx = L + f * 46; if (fx > dx + dw * 0.6) continue; var fl = 0.5 + Math.sin(t * 30 + f) * 0.2, g = ctx.createRadialGradient(fx, fy - 12, 2, fx, fy - 12, 56); g.addColorStop(0, 'rgba(255,160,60,' + 0.45 * fl * fa + ')'); g.addColorStop(1, 'rgba(255,60,20,0)'); ctx.fillStyle = g; ctx.fillRect(fx - 64, fy - 74, 128, 84); }
-    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = fa;
-    var dfr = ultFr('dragon', k); if (dfr) uDraw(dfr, dx, fy - dh + 30, dw, dh);
-    ctx.globalAlpha = 1; var ke = Math.min(1, k / 0.35), ee = 1 - Math.pow(1 - ke, 3); ultGhost(0, ke < 1 ? 'sp1' : 'atk2', L - 70 + (pos[0] - L + 70) * ee, gy[0] - (1 - ee) * 70, 1, 1, ke >= 1);   // 플레아: 왼쪽 화면 밖에서 불꽃 돌진으로 날아 들어와 땅에 내려서며 공격
+  // ②③④ (2026-11-24 사용자 "화면 전체를 기준으로 잡고 가운데로 타격이 모인다"): 판정은 화면 전체. 이펙트는 화면을 기준으로 배치 — 용은 왼쪽에서 가운데로, 얼음비는 오른쪽에서 가운데로, 회오리는 가운데. 그림은 화면 밖으로 잘리지 않게
+  if (G.ult.base == null) { var gb0 = groundAt(P.x + P.w / 2, P.y + P.h); G.ult.base = (gb0 !== null ? gb0 : ultSpot(P.x + P.w / 2).y) + 4; }   // 필살기를 쓴 순간 캐릭터 발밑 땅 (공중에서 써도 그 아래 땅)
+  var base = G.ult.base;   // 이펙트 아랫선: 캐릭터가 딛는 높이에서 4픽셀 아래 (땅 위 풀과 살짝 겹치게, 2026-11-24 사용자). 그림은 빈 여백을 잘라 내 아랫단이 곧 그림 맨 아래
+  if (ultIn(t, ULT.red)) {   // ② 용의 돌진
+    var k = ultK(t, ULT.red), fa = k > 0.85 ? (1 - k) / 0.15 : 1, dfr = ULTIMG.dragon[Math.floor(t * 12) % 3], dw = dfr ? dfr.width * 2 : 368, dh = dfr ? dfr.height * 2 : 224, e = 1 - Math.pow(1 - Math.min(1, k / 0.7), 2), dx = (L - dw) + e * (C - L);   // 용 머리(그림 오른쪽 끝)가 화면 정가운데까지
+    for (var f = 0; f < 40; f++) { var fx = Math.round(L + f * 24), fgy = groundAt(fx, base); if (fx > dx + dw * 0.7 || fgy === null) continue; groundPix(fx, fgy, 'fire', f, t); }   // 용이 지나간 땅에 도트 불길
+    ctx.globalAlpha = fa; if (dfr) uDraw(dfr, dx, base - dh, dw, dh);
+    ctx.globalAlpha = 1; var ke = Math.min(1, k / 0.35), ee = 1 - Math.pow(1 - ke, 3); ultGhost(0, ke < 1 ? 'sp1' : 'atk2', L - 70 + (pos[0] - L + 70) * ee, gy[0] - (1 - ee) * 70, 1, 1, ke >= 1);   // 플레아: 왼쪽 화면 밖에서 날아 들어와 내려서며 공격
   }
-  if (ultIn(t, ULT.blue)) {   // ③ 얼음비: 오필리아가 오른쪽에서 — 얼음 창이 화면 전체에 쏟아지고 땅에 수정이 솟는다 (그림 넷을 나란히, 조금씩 어긋나게)
-    var kb = ultK(t, ULT.blue), fb = kb > 0.85 ? (1 - kb) / 0.15 : 1, isc = 1.55, iw = 256 * isc, ih = 204 * isc;
-    var kbe = Math.min(1, kb / 0.35), eb = 1 - Math.pow(1 - kbe, 3); ultGhost(1, kbe < 1 ? 'sp1' : 'atk2', R + 70 - (R + 70 - pos[1]) * eb, gy[1] - (1 - eb) * 70, -1, 1, kbe >= 1);   // 오필리아: 오른쪽 화면 밖에서 얼음을 타고 날아 들어와 내려서며 공격
+  if (ultIn(t, ULT.blue)) {   // ③ 얼음비: 오른쪽에서 가운데 쪽으로 넷이 차례로
+    var kb = ultK(t, ULT.blue), fb = kb > 0.85 ? (1 - kb) / 0.15 : 1;
+    var kbe = Math.min(1, kb / 0.35), eb = 1 - Math.pow(1 - kbe, 3); ultGhost(1, kbe < 1 ? 'sp1' : 'atk2', R + 70 - (R + 70 - pos[1]) * eb, gy[1] - (1 - eb) * 70, -1, 1, kbe >= 1);   // 오필리아: 오른쪽 화면 밖에서 날아 들어와 내려서며 공격
     ctx.globalAlpha = fb;
-    for (var c = 0; c < 4; c++) { var ifr = ultFr('ice', Math.max(0, Math.min(0.999, kb * 1.25 - (3 - c) * 0.08))); if (ifr) uDraw(ifr, L - 40 + c * (W + 80) / 4 - iw * 0.1, fy - ih + 14, iw, ih); }
+    for (var c = 0; c < 4; c++) { var kc = Math.max(0, Math.min(0.999, kb * 1.4 - c * 0.12)), icx = C + (3 - c) * 115, ifr = ultFr('ice', kc); if (ifr && kb * 1.4 > c * 0.12) { uDraw(ifr, icx - ifr.width, base - ifr.height * 2, ifr.width * 2, ifr.height * 2);   /* 오른쪽에서 차례로, 마지막 넷째는 정가운데 */ if (kc > 0.4) for (var dq = 0; dq < 8; dq++) { var dgx = icx - 90 + dq * 26, dgy = groundAt(dgx, base); if (dgy !== null) groundPix(dgx, dgy, 'ice', dq + c * 8, t); } } }
     ctx.globalAlpha = 1;
   }
-  if (ultIn(t, ULT.wind)) {   // ④ 폭풍: 클로에가 가운데에서 — 큰 회오리 하나와 양옆의 작은 회오리
-    var kw = ultK(t, ULT.wind), fw = kw > 0.85 ? (1 - kw) / 0.15 : 1, wsc = 2.6;
+  if (ultIn(t, ULT.wind)) {   // ④ 폭풍: 가운데 큰 회오리 (시작·끝 그림과, 좌우를 번갈아 뒤집어 도는 큰 회오리)
+    var kw = ultK(t, ULT.wind), fw = kw > 0.85 ? (1 - kw) / 0.15 : 1;
     var kwe = Math.min(1, kw / 0.2); ultGhost(2, kwe < 1 ? 'sp0' : 'atk2', pos[2], gy[2] - (1 - kwe) * 24, 1, Math.min(1, kw * 8), true);   // 클로에: 가운데에서 바람과 함께 솟아 나타나 공격
-    ctx.globalAlpha = fw * 0.8;
-    var wf2 = ultFr('wind', Math.max(0, kw - 0.15)); if (wf2) { uDraw(wf2, L - 60, fy - 204 * 1.5 + 20, 256 * 1.5, 204 * 1.5); ctx.save(); ctx.translate(R + 60, 0); ctx.scale(-1, 1); uDraw(wf2, 0, fy - 204 * 1.5 + 20, 256 * 1.5, 204 * 1.5); ctx.restore(); }
-    ctx.globalAlpha = fw;
-    var wfr = ultFr('wind', kw); if (wfr) uDraw(wfr, C - 128 * wsc, fy - 204 * wsc + 40, 256 * wsc, 204 * wsc);
-    ctx.globalAlpha = 1;
+    var twi = kw < 0.18 ? ULTIMG.windStart : (kw > 0.82 ? ULTIMG.windEnd : ULTIMG.tornado), tww = twi ? twi.width * 2 : 0, twh = twi ? twi.height * 2 : 0;
+    if (twi) { ctx.save(); ctx.globalAlpha = fw; ctx.translate(Math.round(C), 0); if (twi === ULTIMG.tornado && Math.floor(t * 14) % 2) ctx.scale(-1, 1); uDraw(twi, -tww / 2, base - twh, tww, twh); ctx.restore(); }
+    for (var wq = 0; wq < 16; wq++) { var wgx = C - 200 + wq * 26, wgy = groundAt(wgx, base); if (wgy !== null) groundPix(wgx, wgy, 'wind', wq, t); }
   }
   if (ultIn(t, ULT.prep) || ultIn(t, ULT.fin) || ultIn(t, ULT.after)) {   // ⑥⑦⑧ 셋이 왼쪽에 모여서
     var g0 = ultSpot(L + 150), g1 = ultSpotR(g0.x + 56), gs = [g0, g1, ultSpotR(g1.x + 56)], gx = [gs[0].x, gs[1].x, gs[2].x], inP = ultIn(t, ULT.prep), inF = ultIn(t, ULT.fin), kf = ultK(t, ULT.fin), dash = inF ? Math.min(1, kf * 3) * 60 : 0, fa2 = ultIn(t, ULT.after) ? Math.max(0, 1 - ultK(t, ULT.after)) : 1;
@@ -1941,8 +1945,10 @@ function drawUlt() {   // 월드 좌표. 화면 전체를 쓴다
       for (var e = 0; e < 3; e++) { var ex0 = gx[e], ey0 = gs[e].y - 30, mx = Math.round(ex0 + (sx0 - ex0) * kp), my = Math.round(ey0 + (sy0 - ey0) * kp); ctx.fillStyle = 'rgb(' + ULT_COL[e] + ')'; ctx.fillRect(mx - 4, my - 4, 8, 8); ctx.fillStyle = 'rgba(' + ULT_COL[e] + ',0.4)'; ctx.fillRect(mx - 7, my - 7, 14, 14); }   // 세 속성 알갱이가 별로 모임
     }
     if (inF) {   // ⑦ 합동 일격 (2026-11-24 사용자 에셋 "협동 필살기 최종 타격 ver.2" 8장): 셋 앞에서 오른쪽 화면 끝까지 — 화룡·얼음·바람이 한 줄기로 뻗어 끝에서 터짐. 3픽셀 도트, 바닥에 붙여
-      var gby = gs[1].y, bx0 = gx[2] - 10, bw = R + 40 - bx0, bh = bw * 271 / 724, ffr = ultFr('fin', Math.min(0.999, kf));
-      if (ffr) uDraw(ffr, bx0, gby + 14 - bh, bw, bh);
+      var fiN = Math.max(0, Math.min(7, Math.floor(kf * 8))), FIN_BOT = [158, 160, 153, 153, 158, 151, 147, 146], ffr = ULTIMG.fin[fiN], bw = ffr ? ffr.width * 2 : 860, bh = ffr ? ffr.height * 2 : 322, bx0 = C - 265 * 2, fby = base - (FIN_BOT[fiN] + 1) * 2;   // 폭발이 가장 빽빽한 곳(그림의 x=258~320, 잰 값)이 화면 가운데로 느껴지게 x=265 를 가운데에. 장마다 그림 아랫단(잰 값)을 땅에 맞춤 (2026-11-24 사용자 "막타 … 오른쪽으로 옮기고 아래로")
+      // (최종 타격 그림은 8장을 같은 범위로 잘라 둠. 아랫단은 장마다 달라서 FIN_BOT 로 맞춤)
+      if (ffr) uDraw(ffr, bx0, fby, bw, bh);
+      if (kf > 0.25) for (var bq = 0; bq < 30; bq++) { var bgx = C - 300 + bq * 20, bgy = groundAt(bgx, base); if (bgy !== null) groundPix(bgx, bgy, 'boom', bq, t); }   // 가운데 폭발 둘레 땅에서 파편
       ctx.globalAlpha = 1;
     }
   }
@@ -1953,7 +1959,16 @@ function drawUlt() {   // 월드 좌표. 화면 전체를 쓴다
   });
   ctx.restore();
 }
-function uDraw(img, x, y, w, h) { drawPix(img, x, y, w, h, 3); }   // 필살기 그림은 3픽셀 도트로 (배경 도트 굵기에 맞춤)
+function uDraw(img, x, y, w, h) { var sm = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false; ctx.drawImage(img, Math.round(x), Math.round(y), Math.round(w), Math.round(h)); ctx.imageSmoothingEnabled = sm; }   // 체인 에코 그림은 미리 도트(2픽셀·색 외곽선)로 만들어 둠. 부드럽게 하지 않고 2배로
+// 땅에 닿는 자리의 도트 효과 (2026-11-24 사용자 "바닥에서 붕 떠서"): 불길·얼음 가루·바람 흙먼지·폭발 파편이 땅 줄에서 튐. 2픽셀 네모만 씀
+function groundPix(x, gy, kind, i, t) {
+  x = Math.round(x); gy = Math.round(gy);
+  var ph = (t * 3 + ultRnd(i) * 5) % 1, cols = { fire: ['#ffe08a', '#ff9a3a', '#e0482a', '#7a2418'], ice: ['#ffffff', '#bff0ff', '#6fc8ff', '#2f5f9a'], wind: ['#e8fff0', '#9affc8', '#4fbf8a', '#6b5a3a'], boom: ['#fff6d8', '#ffd27a', '#c8a0ff', '#5a4a6a'] }[kind];
+  if (kind === 'fire') { var hh = 6 + Math.round((Math.sin(t * 24 + i * 1.7) * 0.5 + 0.5) * 10); for (var y = 0; y < hh; y += 2) { var w2 = Math.max(2, Math.round((1 - y / hh) * 8)); ctx.fillStyle = cols[Math.min(3, Math.floor(y / hh * 3.5))]; ctx.fillRect(x - w2 / 2, gy - y - 2, w2, 2); } return; }
+  var up = Math.round(ph * (kind === 'boom' ? 26 : 14)), sx = Math.round((ultRnd(i + 3) - 0.5) * 12 + (kind === 'wind' ? (ph - 0.5) * 30 : 0));
+  ctx.fillStyle = cols[3]; ctx.fillRect(x - 3, gy - 2, 6, 2);   // 땅에 닿은 그림자 점
+  ctx.fillStyle = cols[Math.floor(ph * 3)]; ctx.fillRect(x + sx, gy - 2 - up, 2, 2); ctx.fillRect(x + sx + 3, gy - 2 - Math.round(up * 0.6), 2, 2);
+}
 var ULT_PANEL = [['#3a0808', '#ff6a2a'], ['#081a4a', '#6fc8ff'], ['#06301f', '#7affc0']];
 function drawUltScreen() {   // 화면 좌표: ① 제목, ⑤ 원을 셋으로 나눈 합동 컷신
   if (!G.ult) return;
@@ -1971,7 +1986,7 @@ function drawUltScreen() {   // 화면 좌표: ① 제목, ⑤ 원을 셋으로 
   }
   if (t < ULT.wind[1]) fancyText('체인 에코', W / 2, 140, 40 * (t < 0.12 ? 0.7 + t / 0.12 * 0.3 : 1), POP_STYLE._);   // ① 연계 시작
 }
-var ULTIMG = { dragon: [], ice: [], wind: [], beam: [], boom: [], fin: [], faces: null };   // 합동 필살기 그림 (assets/ult/)
+var ULTIMG = { dragon: [], ice: [], fin: [], tornado: null, windStart: null, windEnd: null, faces: null };   // 합동 필살기 그림 (assets/ult/)
 function ultFr(n, k) { var a = ULTIMG[n], c = n === 'fin' ? 8 : 6; return a && a[Math.max(0, Math.min(c - 1, Math.floor(k * c)))]; }
 // 체인 에코를 쓸 수 있을 때 (2026-11-24 사용자 "아우라도 문제가 많아" → 도트로 다시): 발밑에 세 속성 색이 번갈아 도는 작은 빛, 몸 둘레로 불·얼음·바람 색 네모 알갱이가 천천히 솟음
 // layer 'back' 은 캐릭터 뒤(발밑 빛과 알갱이 절반), 'front' 는 앞(나머지 알갱이)
