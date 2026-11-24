@@ -7,9 +7,9 @@
 /* 레이아웃: 게임 속 HUD 판처럼 금빛 테두리와 도트 모서리를 단 판을, 밤 숲의 청록 바탕 위에 세로로 쌓는다.
    불(주황)·얼음(하늘)·바람(초록) 세 속성 색이 판마다 띠로 흐르고, 제목은 게임 제목과 같은 도트 글꼴 Jersey 10 + 금빛 그라데이션 */
 :root {
-  --night: #0c1a1a;      /* 밤 숲 바탕 */
-  --night-2: #12262a;    /* 판 */
-  --night-3: #193339;    /* 판 안 칸 */
+  --night: #132a22;      /* 숲 초록 바탕 (2026-11-24 사용자가 고름) */
+  --night-2: #163028;    /* 판 */
+  --night-3: #1d3a31;    /* 판 안 칸 */
   --gold: #ffd24a;       /* HUD 금빛 */
   --gold-dk: #8a5a16;    /* 금빛 테두리 그림자 */
   --text: #eef4ea;
@@ -27,7 +27,7 @@
 body {
   background:
     radial-gradient(1200px 600px at 50% -10%, rgba(127, 216, 255, 0.12), transparent 60%),
-    radial-gradient(800px 500px at 0% 40%, rgba(95, 191, 90, 0.10), transparent 60%),
+    radial-gradient(800px 500px at 0% 40%, rgba(95, 191, 90, 0.16), transparent 60%),
     var(--night);
   color: var(--text);
   font-family: var(--font-body);
@@ -86,7 +86,7 @@ figcaption { font-size: 0.86rem; color: var(--muted); padding-top: 8px; line-hei
 .strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
 
 /* 판 (섹션): HUD 판 — 금테, 위쪽 세 속성 띠, 네 모서리 도트 보석 */
-.slab { position: relative; margin-top: 56px; padding: 30px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--night-2), #0f2124);
+.slab { position: relative; margin-top: 56px; padding: 30px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--night-2), #11261e);
   border: 3px solid var(--gold); box-shadow: 0 0 0 3px var(--night), 0 0 0 5px var(--gold-dk), 0 12px 28px rgba(0, 0, 0, 0.5); display: grid; gap: 20px; }
 .slab::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 5px; background: linear-gradient(90deg, var(--fire) 0 33.3%, var(--ice) 33.3% 66.6%, var(--wind) 66.6% 100%); }
 .slab::after { content: ""; position: absolute; top: -11px; left: 50%; width: 14px; height: 14px; margin-left: -7px; background: var(--ice); box-shadow: -22px 0 0 var(--fire), 22px 0 0 var(--wind); }
