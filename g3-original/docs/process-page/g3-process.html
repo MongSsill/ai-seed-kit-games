@@ -1,0 +1,500 @@
+<title>Chain Echo 작업 방식</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* 레이아웃: 사원 돌판 위에 하늘색 룬 선으로 이은 세로 기록. 게임 화면(돌, 금빛 글자, 룬빛)을 그대로 가져온 한 가지 어두운 모습.
+   큰 제목 하나만 장식 글씨체, 나머지 제목은 읽기 쉬운 본문 글씨체의 굵은 두께 (2026-11-24 "도트"의 ㅌ 이 뭉개 보인다는 지적) */
+:root {
+  --stone-0: #15161d;   /* 바닥 */
+  --stone-1: #1f212b;   /* 판 */
+  --stone-2: #2c2e3a;   /* 판 테두리 안 */
+  --edge: #5d5b6c;      /* 돌 테두리 */
+  --text: #ece8f2;
+  --muted: #a6a1b5;
+  --gold: #ffd54f;      /* 금빛 글자 (게임 버튼) */
+  --rune: #4dd0e1;      /* 하늘색 룬 */
+  --ember: #ff7a45;
+  --ok: #8bd88f;
+  --font-display: "Black Han Sans", "IBM Plex Sans KR", "Malgun Gothic", sans-serif;
+  --font-head: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-body: "IBM Plex Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--stone-0);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.7;
+  word-break: keep-all;          /* 한국어를 낱말 단위로 줄바꿈 */
+  overflow-wrap: break-word;
+}
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-block: 0 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.15; letter-spacing: 0.02em; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 22px rgba(255, 213, 79, 0.25); }
+h2 { font-family: var(--font-head); font-weight: 700; font-size: clamp(1.45rem, 3.4vw, 1.95rem); line-height: 1.3; letter-spacing: -0.01em; }
+h3 { font-family: var(--font-head); font-weight: 700; font-size: 1.1rem; line-height: 1.4; }
+p { margin: 0; }
+a { color: var(--rune); }
+a:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.mono { font-family: var(--font-mono); font-size: 0.86em; color: var(--rune); }
+.muted { color: var(--muted); }
+
+/* 머리 */
+.hero { padding-block: 48px 28px; display: grid; gap: 22px; }
+.eyebrow { font-size: 0.82rem; letter-spacing: 0.16em; color: var(--rune); }
+.lead {
+  max-width: 46em;
+  padding: 18px 22px;
+  font-size: clamp(1.05rem, 2.2vw, 1.22rem);
+  line-height: 1.75;
+  color: var(--text);
+  background: linear-gradient(90deg, rgba(77, 208, 225, 0.09), rgba(77, 208, 225, 0));
+  border-left: 3px solid var(--rune);
+  display: grid;
+  gap: 10px;
+}
+.lead strong { color: var(--gold); font-weight: 700; }
+/* 바로가기: 플레이 화면 아래 가운데에 버튼 둘만. 게임 해 보기는 금빛 석판, 저장소는 돌 석판. 올리면 떠오르고 누르면 눌림 */
+.go { display: flex; justify-content: center; padding-block: 12px 4px; }
+.go .btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 16px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 0 22px; text-decoration: none;
+  font-weight: 700; font-size: 0.98rem; letter-spacing: 0.04em; color: var(--gold);
+  background: linear-gradient(#4a4c5a, #2c2e38);
+  border: 2px solid var(--edge); border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 3px 0 #0c0d12, 0 6px 12px rgba(0, 0, 0, 0.45);
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn svg { width: 16px; height: 16px; flex: none; color: var(--rune); }
+.btn:hover { transform: translateY(-2px); border-color: var(--rune); color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 5px 0 #0c0d12, 0 0 16px rgba(77, 208, 225, 0.45); }
+.btn:active { transform: translateY(1px); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 0 #0c0d12; }
+.btn.primary { color: #2a1d00; background: linear-gradient(#ffe082, #f5b82e); border-color: #b8860b; text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35); }
+.btn.primary svg { color: #2a1d00; }
+.btn.primary:hover { color: #1a1200; border-color: #fff3b0; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 5px 0 #6b4e00, 0 0 18px rgba(255, 213, 79, 0.5); }
+.btn.primary:active { box-shadow: 0 1px 0 #6b4e00; }
+@media (max-width: 560px) { .go .btns, .go .btn { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:hover, .btn:active { transform: none; } }
+
+/* 플레이 화면 */
+.shots { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.shots .side { display: grid; gap: 12px; }
+figure { margin: 0; min-width: 0; }
+.frame { position: relative; border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 0 18px rgba(77, 208, 225, 0.18), 0 8px 20px rgba(0, 0, 0, 0.6); background: var(--stone-1); }
+.frame img { display: block; width: 100%; height: auto; aspect-ratio: 960 / 544; object-fit: cover; max-width: 100%; }
+figcaption { font-size: 0.84rem; color: var(--muted); padding-top: 6px; line-height: 1.5; }
+.strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+/* 판 (섹션) */
+.slab { position: relative; margin-top: 56px; padding: 28px clamp(16px, 3vw, 32px) 30px; background: linear-gradient(var(--stone-1), #191a22); border: 3px solid var(--edge); border-radius: 4px; box-shadow: inset 0 0 0 2px var(--stone-2), 0 10px 26px rgba(0, 0, 0, 0.55); display: grid; gap: 20px; }
+.slab::before, .slab::after { content: ""; position: absolute; top: -9px; width: 12px; height: 12px; background: var(--rune); border: 2px solid var(--stone-0); transform: rotate(45deg); box-shadow: 0 0 10px var(--rune); }
+.slab::before { left: -9px; }
+.slab::after { right: -9px; }
+.slab-head { display: grid; gap: 8px; }
+.skill { display: inline-flex; align-self: start; justify-self: start; font-size: 0.78rem; letter-spacing: 0.08em; color: var(--stone-0); background: var(--rune); padding: 3px 10px; border-radius: 2px; font-weight: 700; }
+.slab-head p { max-width: 46em; color: var(--muted); }
+
+/* 역할 */
+.roles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.role { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.role .who { font-weight: 700; font-size: 1.08rem; }
+.role.me .who { color: var(--gold); }
+.role.ai .who { color: var(--rune); }
+.role.rv .who { color: #c9b5ff; }
+.role.ck .who { color: var(--ok); }
+.role ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
+.loop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.95rem; }
+.loop .step { padding: 6px 12px; border: 1px solid var(--edge); border-radius: 2px; background: #23252f; }
+.loop .arrow { color: var(--rune); }
+
+/* 단계 */
+.track { display: grid; }
+.stage { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px dashed #3d3f4d; }
+.stage:first-child { border-top: 0; }
+.stage .tag { font-weight: 700; font-size: 1.05rem; color: var(--gold); line-height: 1.3; }
+.stage .tag small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); }
+.stage p { max-width: 46em; }
+.chain { display: grid; gap: 6px; padding: 14px 16px; background: #1a1b23; border-left: 3px solid var(--rune); }
+.chain .t { font-size: 0.82rem; color: var(--muted); }
+.chain div { font-size: 0.93rem; }
+.chain q { color: var(--gold); quotes: "“" "”"; }
+
+/* 변화 */
+.shift { display: grid; gap: 12px; }
+.change { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.change .before, .change .after { padding: 14px 16px; border-radius: 3px; min-width: 0; }
+.change .before { background: #241f24; border: 1px solid #4a3a3f; }
+.change .after { background: #1b2629; border: 1px solid #2f5960; }
+.change .lbl { font-size: 0.74rem; letter-spacing: 0.1em; color: var(--muted); display: block; margin-bottom: 4px; }
+.change h3 { margin-bottom: 4px; }
+.change .mid { display: grid; place-items: center; color: var(--rune); font-size: 1.3rem; }
+.change p { font-size: 0.94rem; }
+
+/* 사례 */
+.scenes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.scene { padding: 18px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.scene .kind { font-size: 0.76rem; letter-spacing: 0.08em; font-weight: 700; }
+.scene .kind.co { color: var(--gold); }
+.scene .kind.auto { color: var(--rune); }
+.scene ol { margin: 0; padding-left: 1.2em; font-size: 0.93rem; display: grid; gap: 4px; }
+.scene q { color: var(--gold); quotes: "“" "”"; }
+.scene .src { font-size: 0.78rem; color: var(--muted); }
+.subhead { font-size: 1.12rem; margin-top: 4px; }
+
+/* 규칙 표 */
+.tablebox { overflow-x: auto; border: 1px solid #3d3f4d; border-radius: 3px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid #33353f; }
+th { font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; background: #1b1c24; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; white-space: nowrap; }
+.pill.good { background: rgba(139, 216, 143, 0.15); color: var(--ok); border: 1px solid rgba(139, 216, 143, 0.4); }
+.pill.bad { background: rgba(255, 122, 69, 0.14); color: var(--ember); border: 1px solid rgba(255, 122, 69, 0.45); }
+.pill.wait { background: rgba(166, 161, 181, 0.12); color: var(--muted); border: 1px solid rgba(166, 161, 181, 0.35); }
+
+/* 기여 */
+.split { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.split .col { padding: 16px; background: var(--stone-2); border: 1px solid #3d3f4d; border-radius: 3px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.split ul { margin: 0; padding-left: 1.1em; font-size: 0.93rem; display: grid; gap: 4px; }
+.quote-me { padding: 12px 16px; border-left: 3px solid var(--gold); background: #1b1c24; }
+.next { display: grid; gap: 8px; padding-left: 1.3em; margin: 0; }
+.foot { margin-top: 40px; font-size: 0.82rem; color: var(--muted); max-width: 46em; }
+
+@media (max-width: 760px) {
+  .shots { grid-template-columns: 1fr; }
+  .shots .side { grid-template-columns: 1fr 1fr; }
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .roles { grid-template-columns: 1fr 1fr; }
+  .scenes, .split { grid-template-columns: 1fr; }
+  .change { grid-template-columns: 1fr; }
+  .change .mid { transform: rotate(90deg); height: 20px; }
+  .stage { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (max-width: 420px) { .roles { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header class="hero">
+    <span class="eyebrow">게임 3 · 창작 데모 · AI 협업 기록</span>
+    <h1>Chain Echo 작업 방식</h1>
+    <div class="lead">
+      <p>앞의 두 게임에서 확인한 <strong>태그의 재미</strong>를 바탕으로, 세 캐릭터를 태그로 이어 길을 여는 2D 도트 플랫포머를 만들었습니다. 스테이지 1-1부터 1-5의 보스까지, 한 판은 스테이지 하나입니다.</p>
+      <p>이 페이지는 <strong>레퍼런스를 정하고 AI로 에셋을 만든 뒤, 게임의 톤에 맞게 다시 맞춰 넣은 과정</strong>과 AI와 일한 방식을 정리했습니다.</p>
+    </div>
+    <div class="shots">
+      <figure>
+        <div class="frame"><img src="img/g3-ult-finale.png" alt="세 캐릭터의 합동 일격이 화면 가운데에서 불과 얼음 결정으로 터지는 체인 에코 마지막 장면" width="960" height="544"></div>
+        <figcaption>합동 필살기 체인 에코의 합동 일격. 공격 판정은 화면 전체이고, 이펙트는 화면 가운데로 모입니다.</figcaption>
+      </figure>
+      <div class="side">
+        <figure>
+          <div class="frame"><img src="img/g3-ult-cutin.png" alt="원을 셋으로 나눈 세 캐릭터의 도트 얼굴 컷신" width="960" height="544"></div>
+          <figcaption>세 얼굴 컷신 (도트로 다시 그림)</figcaption>
+        </figure>
+        <figure>
+          <div class="frame"><img src="img/g3-world-door.png" alt="사원 돌 색으로 다시 칠한 월드 클리어 문이 빛을 내며 열리는 장면" width="960" height="544"></div>
+          <figcaption>생명의 잔 넷을 끼워 여는 월드 클리어 문</figcaption>
+        </figure>
+      </div>
+    </div>
+    <div class="strip">
+      <figure><div class="frame"><img src="img/g3-title.png" alt="CHAIN ECHO 도트 제목과 세 캐릭터, 조작 안내가 있는 시작 화면" width="960" height="560" loading="lazy"></div><figcaption>시작 화면</figcaption></figure>
+      <figure><div class="frame"><img src="img/g3-sign-dash.png" alt="숲 스테이지에서 표지판 말풍선이 플레아의 화염 돌진을 설명하는 장면" width="960" height="544" loading="lazy"></div><figcaption>표지판으로 익히는 기술</figcaption></figure>
+      <figure><div class="frame"><img src="img/g3-boss.png" alt="사원 스테이지에서 바위 골렘 보스와 싸우는 장면" width="960" height="544" loading="lazy"></div><figcaption>1-5 골렘 보스</figcaption></figure>
+      <figure><div class="frame"><img src="img/g3-ult-ice.png" alt="얼음비와 회오리가 화면을 덮는 체인 에코 장면" width="960" height="544" loading="lazy"></div><figcaption>체인 에코: 얼음비와 폭풍</figcaption></figure>
+    </div>
+    <nav class="go" aria-label="바로가기">
+      <div class="btns">
+        <a class="btn primary" href="https://mongssill.github.io/ai-seed-kit-games/g3-original/" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9.5-5.5z" fill="currentColor"/></svg>게임 해 보기</a>
+        <a class="btn" href="https://github.com/MongSsill/ai-seed-kit-games/tree/main/g3-original" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h4l1.5 1.5h5.5v8h-11z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>게임 3 폴더 (문서·작업 과정)</a>
+      </div>
+    </nav>
+  </header>
+
+  <section class="slab" aria-labelledby="s-roles">
+    <div class="slab-head">
+      <span class="skill">AI 리더십</span>
+      <h2 id="s-roles">사람과 AI의 역할 설계</h2>
+      <p>그림과 소리는 제가 레퍼런스와 방향을 정해 AI 이미지·사운드 도구로 만들고, Claude Code는 그것을 게임에 맞게 자르고 다시 칠해 넣었습니다. 무엇을 만들지와 완성 여부는 제가 직접 플레이하며 판단했습니다.</p>
+    </div>
+    <div class="roles">
+      <div class="role me">
+        <span class="who">나</span>
+        <ul>
+          <li>창작 게임 기획과 핵심 재미 선정</li>
+          <li>레퍼런스 확보와 방향 지정</li>
+          <li>AI 도구로 그림·효과음 제작</li>
+          <li>직접 플레이하며 위치·톤 검수</li>
+          <li>표지판 문장 작성</li>
+          <li>플레이 테스트 진행</li>
+        </ul>
+      </div>
+      <div class="role ai">
+        <span class="who">Claude Code</span>
+        <ul>
+          <li>게임 코드 작성과 수정</li>
+          <li>에셋을 잘라 도트로 다시 칠하기</li>
+          <li>프레임 자리 맞춤, 바닥·가운데 측정</li>
+          <li>효과음 연결과 음량 맞춤</li>
+          <li>선택지마다 후보와 추천안 제시</li>
+        </ul>
+      </div>
+      <div class="role rv">
+        <span class="who">reviewer</span>
+        <ul>
+          <li>작업 과정을 보지 않은 검토 전용 AI</li>
+          <li>마지막 저장 전에 코드와 문서를 독립 점검</li>
+          <li>숨은 버그와 문서·실제 차이 발견</li>
+        </ul>
+      </div>
+      <div class="role ck">
+        <span class="who">자동 검사와 장면 촬영</span>
+        <ul>
+          <li>수정할 때마다 실행되는 규칙 검사 (135개 → 207개)</li>
+          <li>장면별 화면을 찍어 확인</li>
+          <li>가운데 선·바닥 선을 그어 위치 측정</li>
+        </ul>
+      </div>
+    </div>
+    <div class="loop" aria-label="에셋이 게임에 들어가는 흐름">
+      <span class="step">레퍼런스·방향 지정</span><span class="arrow">→</span>
+      <span class="step">AI 도구로 에셋 생성</span><span class="arrow">→</span>
+      <span class="step">자르기·도트·색 맞춤</span><span class="arrow">→</span>
+      <span class="step">장면 촬영·측정</span><span class="arrow">→</span>
+      <span class="step">직접 플레이로 확인</span><span class="arrow">→</span>
+      <span class="step">수정 요청</span>
+    </div>
+    <p class="muted">게임 1·2에서 다듬은 작업 규칙 파일(CLAUDE.md)과 <span class="mono">/start</span> <span class="mono">/end</span> <span class="mono">/retro</span> 명령, reviewer 역할을 그대로 이어받아 일했습니다.</p>
+  </section>
+
+  <section class="slab" aria-labelledby="s-structure">
+    <div class="slab-head">
+      <span class="skill">구조화 능력</span>
+      <h2 id="s-structure">문제 정의와 단계별 분해</h2>
+      <p>단계마다 완료 기준을 정하고, 기준을 충족해야 다음 단계로 넘어갔습니다.</p>
+    </div>
+    <div class="track">
+      <div class="stage"><span class="tag">A<small>출발점</small></span><p>게임 1·2에서 확인한 태그의 재미에서 출발해, 전투와 이동 모두에서 태그의 맛을 살리는 창작 게임으로 정했습니다 (<span class="mono">idea.md</span>).</p></div>
+      <div class="stage"><span class="tag">B<small>정의</small></span><p>상황·문제·목표를 직접 쓰고, 스테이지 1-1~1-5, 별 셋, 태그와 세 기술, 보스까지 완료 기준으로 정리했습니다 (<span class="mono">problem.md</span>). reviewer 검토를 거쳐 다듬었습니다.</p></div>
+      <div class="stage"><span class="tag">C<small>분해</small></span><p>핵심 루프를 한 문장으로 정하고 작업 8개로 나누었습니다 (<span class="mono">tasks.md</span>). 엔진은 웹(HTML과 자바스크립트)으로 정했습니다.</p></div>
+      <div class="stage"><span class="tag">D–E<small>첫 판·배포</small></span><p>첫 판을 만들어 웹 링크로 배포했습니다. 작업마다 그 시점의 판을 <span class="mono">steps/</span> 폴더에 보관해 53단계의 기록이 남았습니다.</p></div>
+      <div class="stage"><span class="tag">F<small>다듬기</small></span><p>레퍼런스 에셋을 넣고 직접 플레이하며 위치·톤·적중감을 다듬었습니다. 처음 해 보는 사람에게 플레이 테스트를 받았습니다.</p></div>
+      <div class="stage"><span class="tag">G<small>정리</small></span><p>README에 에셋 출처와 만든 이유를 정리했습니다.</p></div>
+    </div>
+    <div class="chain" aria-label="플레이 소감이 작업으로 이어진 예">
+      <span class="t">직접 플레이한 소감에서 작업으로 이어진 예</span>
+      <div><q>바닥에서 붕 떠서 다른 에셋들과 어울리지 않는</q> → 이펙트 그림의 빈 여백을 잘라 내고, 캐릭터가 딛는 땅에 맞춤</div>
+      <div><q>마지막 타격은 가운데 부분에서 일어나야해</q> → 폭발이 가장 빽빽한 곳을 재서 화면 가운데에 배치</div>
+      <div><q>문의 위치마저 움직이는</q> → 원인이 따라오던 화면임을 찾아, 문이 열리는 동안 화면을 멈춤</div>
+      <div><q>떨어지기 직전 발판에서 다시 시작해야지</q> → 낭떠러지 끝이면 한 칸 반 안쪽에서, 잠깐 방향키를 받지 않게</div>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-shift">
+    <div class="slab-head">
+      <span class="skill">학습 실행력</span>
+      <h2 id="s-shift">AI 활용 방식의 변화</h2>
+      <p>게임 2 회고에서 정한 세 가지(완결성, 자연스러운 레벨디자인, 그래픽 퀄리티)를 게임 3에 적용하며 일하는 방식을 바꿨습니다.</p>
+    </div>
+    <div class="shift">
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>AI가 코드로 그린 이펙트</h3><p>필살기 이펙트를 AI가 도형으로 그렸습니다. 레퍼런스의 그림 품질에 미치지 못했습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>레퍼런스 → AI 생성 → 톤 맞춤</h3><p>장면별 레퍼런스를 정해 AI 이미지 도구로 이펙트 시트를 만들고, Claude Code가 캐릭터와 같은 굵기의 도트·색 단계·외곽선으로 다시 칠해 넣었습니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>눈대중으로 잡은 위치</h3><p>"가운데", "바닥" 같은 위치를 그림 크기로 짐작해 배치했습니다. 그림에 빈 여백이 있어 실제로 보이는 위치와 달랐습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>재서 맞추는 배치</h3><p>그림의 여백을 잘라 내고, 화면에 가운데 선과 바닥 선을 그어 찍은 뒤 숫자로 맞췄습니다. 실제로 보이는 크기를 고려한 배치를 제가 직접 잡아 주었습니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>설명 화면으로 가르치는 조작</h3><p>게임 2에서는 테스터가 태그보다 회피를 훨씬 자주 썼습니다. 태그의 이점이 충분히 전달되지 않았습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>레벨디자인과 표지판</h3><p>스테이지마다 그 기술이 필요한 지형을 두고, 그 앞에 표지판을 세웠습니다. 표지판 문장 13개는 제가 직접 썼습니다.</p></div>
+      </div>
+      <div class="change">
+        <div class="before"><span class="lbl">이전</span><h3>코드로 낸 짧은 효과음</h3><p>소리를 코드로 만든 짧은 음으로 냈습니다.</p></div>
+        <div class="mid" aria-hidden="true">→</div>
+        <div class="after"><span class="lbl">이후</span><h3>AI 사운드 팩과 측정 기반 음량</h3><p>레퍼런스와 방향을 정해 AI로 효과음 50개를 만들고, 전자음은 충격음으로 다시 만들었습니다. 음량은 소리마다 세기를 재서 쓰임새별로 맞췄습니다.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-scenes">
+    <div class="slab-head">
+      <span class="skill">협업과 자동화</span>
+      <h2 id="s-scenes">협업과 자동화 사례</h2>
+      <p>제가 판단하고 AI가 구현한 사례와, AI가 스스로 문제를 찾거나 자동으로 막아 낸 사례입니다. 인용은 작업 중 결정 기록에 남은 제 말입니다.</p>
+    </div>
+    <h3 class="subhead">사람과 AI의 협업 사례</h3>
+    <div class="scenes">
+      <article class="scene">
+        <span class="kind co">협업 · 그래픽</span>
+        <h3>레퍼런스 에셋을 게임 톤에 녹이기</h3>
+        <ol>
+          <li>AI 이미지 도구로 만든 문과 필살기 이펙트를 그대로 넣자, 고해상도 그림이 도트 배경 위에 떠 보였습니다.</li>
+          <li><q>그대로 적용하지 말고</q> 톤앤매너에 맞추도록 요청하고, 방향 후보 중 "게임 도트에 맞춰 다시 칠하기"를 골랐습니다.</li>
+          <li>AI가 도트 굵기·색 단계·외곽선을 캐릭터와 맞추고, 월드 클리어 문은 사원 벽돌 색으로 다시 칠했습니다.</li>
+        </ol>
+        <p class="src">결정 기록 · 배운 것 장부</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 연출</span>
+        <h3>합동 필살기 체인 에코 구성</h3>
+        <ol>
+          <li>레퍼런스 시퀀스를 만들어 전달하고, <q>플레아가 왼쪽에서 치고 오필리아가 오른쪽에서, 그리고 가운데에서 클로에가</q> 치는 흐름을 정했습니다.</li>
+          <li>세 공격을 겹쳐 하나의 연계로 느끼게 하고, 세 얼굴 컷신 뒤 합동 일격으로 마무리했습니다.</li>
+          <li>판정은 화면 전체로 두고, 이펙트만 화면 가운데로 모이게 배치했습니다.</li>
+        </ol>
+        <p class="src">결정 기록</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 시스템</span>
+        <h3>태그 시스템 다듬기</h3>
+        <ol>
+          <li>이동 기술 끝에 태그하면 태그 수정을 돌려받게 하되, 무한 이동을 막기 위해 같은 캐릭터는 3초 제한을 두도록 정했습니다.</li>
+          <li>보스 공격의 마지막 순간에 태그하면 반격이 나가는 패링을 더했습니다.</li>
+          <li>무적은 패링 성공 뒤와 플레아·클로에의 이동 기술 중에만 두도록 정했습니다.</li>
+        </ol>
+        <p class="src">결정 기록 · 기획 문서</p>
+      </article>
+      <article class="scene">
+        <span class="kind co">협업 · 사운드</span>
+        <h3>효과음 팩 적용과 음량 맞춤</h3>
+        <ol>
+          <li>레퍼런스와 방향을 정해 AI로 효과음 팩을 만들어 전달했습니다.</li>
+          <li>AI가 소리마다 쓰임새 대조표를 먼저 보여 주고, 확인 후 50개를 게임의 각 순간에 연결했습니다.</li>
+          <li>뿅뿅거리는 전자음은 충격음 패치로 바꾸고, 음량은 세기를 재서 맞췄습니다.</li>
+        </ol>
+        <p class="src">결정 기록 · assets/sfx/README.md</p>
+      </article>
+    </div>
+    <h3 class="subhead">AI 자동화 사례</h3>
+    <div class="scenes">
+      <article class="scene">
+        <span class="kind auto">자동화 · 측정</span>
+        <h3>프레임 자리 자동 맞춤</h3>
+        <ol>
+          <li>문 애니메이션 시트에서 장마다 문 자리가 2~20픽셀씩 어긋나 있었습니다.</li>
+          <li>AI가 첫 장과 가장 잘 겹치는 자리를 계산해 모든 장을 맞추고, 열리는 내내 문이 움직이지 않는 것을 찍어 확인했습니다.</li>
+        </ol>
+        <p class="src">결정 기록</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">자동화 · 검사</span>
+        <h3>검수의 자동화</h3>
+        <ol>
+          <li>태그, 기술, 보스, 문, 상자, 낙사까지 게임 규칙을 검사 코드로 옮겨 135개에서 207개로 늘렸습니다.</li>
+          <li>수정할 때마다 화면 없는 크롬으로 전체 검사를 돌렸습니다.</li>
+        </ol>
+        <p class="src">check/g3check.js</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">자동화 · reviewer</span>
+        <h3>저장 전 독립 검토</h3>
+        <ol>
+          <li>얼음 길을 밟은 뒤 떨어지면 돌아올 자리가 바뀌지 않던 버그를 찾았습니다.</li>
+          <li>보스를 건너뛰어도 월드 클리어 문이 열릴 수 있다는 점을 찾아, 생명의 잔이 있어야 열리게 막았습니다.</li>
+        </ol>
+        <p class="src">결정 기록</p>
+      </article>
+      <article class="scene">
+        <span class="kind auto">AI 자체 대응</span>
+        <h3>들을 수 없는 소리의 확인</h3>
+        <ol>
+          <li>AI는 소리를 직접 들을 수 없어, 크롬에서 50개 파일이 모두 불러와지는지 확인했습니다.</li>
+          <li>소리마다 실제 세기를 재서, 메뉴 &lt; 자주 나는 소리 &lt; 기술 &lt; 필살기·보스 순서로 음량을 맞췄습니다.</li>
+        </ol>
+        <p class="src">결정 기록</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-rules">
+    <div class="slab-head">
+      <span class="skill">배운 것을 규칙으로</span>
+      <h2 id="s-rules">규칙 변화 기록</h2>
+      <p>AI가 틀린 부분은 즉시 배운 것 장부에 기록했습니다. 게임 1·2에서 쌓은 규칙을 이어받아 게임 3에 적용했고, 반복되는 문제는 규칙이나 검사로 막았습니다.</p>
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr><th>반복된 문제</th><th>대응</th><th>판정</th></tr></thead>
+        <tbody>
+          <tr><td>AI가 그릴 그림이 사용자 그림과 어울리지 않음 (게임 2)</td><td>AI가 그릴 그림이 사용자 그림 옆이면 먼저 사용자 그림을 받을지 질문</td><td><span class="pill good">효과 있음</span></td></tr>
+          <tr><td>바탕 문서의 단서와 [미결정] 표시가 옮기면서 빠짐</td><td>기준을 내기 전에 바탕 문서와의 대조표를 먼저 보이고 빠진 것 0 확인</td><td><span class="pill good">효과 있음</span></td></tr>
+          <tr><td>에셋이 게임 톤과 어긋남</td><td>크기·도트 굵기·색·바닥 닿음을 게임 안 그림과 맞대 보고, 방향이 여럿이면 후보를 먼저 보여 고르게 함</td><td><span class="pill good">장부로 관리</span></td></tr>
+          <tr><td>위치를 짐작으로 보고</td><td>검사 장면에 가운데 선·바닥 선을 그어 재고 숫자로 보고</td><td><span class="pill good">검사로 전환</span></td></tr>
+          <tr><td>이미 맡긴 일을 다시 물음</td><td>방향이 정해진 일은 묻지 않고 이어서 진행</td><td><span class="pill wait">다음 게임에서 판정</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">배운 것 장부는 세 게임을 거치며 99줄이 쌓였고, 작업 규칙은 20번 고쳤습니다.</p>
+  </section>
+
+  <section class="slab" aria-labelledby="s-who">
+    <div class="slab-head">
+      <span class="skill">기여 범위</span>
+      <h2 id="s-who">작업 범위와 기여</h2>
+    </div>
+    <div class="split">
+      <div class="col">
+        <h3>나</h3>
+        <ul>
+          <li>창작 게임 기획, 핵심 재미와 시스템 결정</li>
+          <li>레퍼런스 확보와 에셋·효과음 방향 지정</li>
+          <li>표지판 문장 작성, 직접 플레이 검수</li>
+          <li>위치·톤 피드백과 플레이 테스트</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>Claude Code</h3>
+        <ul>
+          <li>게임 코드 전체와 자동 검사</li>
+          <li>에셋 자르기·도트화·색 맞춤·자리 맞춤</li>
+          <li>효과음 연결과 음량 측정, 문서 정리, reviewer 검토</li>
+        </ul>
+      </div>
+      <div class="col">
+        <h3>다른 AI 도구 (직접 사용)</h3>
+        <ul>
+          <li>캐릭터·UI·문·상자·필살기 이펙트: 레퍼런스를 정해 ChatGPT로 생성하고 후가공</li>
+          <li>효과음 팩: 레퍼런스와 방향을 정해 AI로 생성</li>
+          <li>원작의 그림과 소리는 사용하지 않았고, 캐릭터 콘셉트만 차용</li>
+        </ul>
+      </div>
+    </div>
+    <div class="quote-me">
+      <p>에셋의 출처는 레퍼런스 확보 후 AI로 재가공, 이후 실제 확인을 통하여 수정. 키 비주얼에 대하여 위치를 지속적으로 잘못 잡아 이를 확인하도록 요구. 에셋의 크기가 실제 보이는 것과 다른 점을 확인하여 이를 고려한 배치를 직접 잡아주었다.</p>
+    </div>
+  </section>
+
+  <section class="slab" aria-labelledby="s-next">
+    <div class="slab-head">
+      <span class="skill">세 게임을 마치며</span>
+      <h2 id="s-next">세 게임을 거치며 달라진 것</h2>
+    </div>
+    <ol class="next">
+      <li>AI활용 능력</li>
+      <li>게임의 핵심 재미에 기여하는 자칫 놓치기 쉬운 요소들(효과음, 제한 사항, 편의성 등)에 대한 이해도 상승</li>
+      <li>에셋과 작업 규칙 누적으로 인한 이후 게임 빌드 시 속도 가속화</li>
+    </ol>
+    <p class="muted">게임 3의 목표: 창작 게임을 통하여 핵심 재미요소를 차용한 새로운 형태의 게임을 만드는 것을 목표로 한다.</p>
+  </section>
+
+  <p class="foot">몬길: 스타다이브 캐릭터 콘셉트를 차용한 IP 활용 게임, 비영리 창작 게임입니다. 원작의 그림과 소리는 사용하지 않았습니다. 위 화면은 실제 게임을 실행해 찍은 장면입니다. PC 키보드로 플레이합니다.</p>
+</div>
