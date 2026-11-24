@@ -256,7 +256,7 @@ var MON = { aggroX: 18 * TS, aggroY: 9 * TS, lose: 1.3, slimeV: 60, wanderV: 18,
 // 보스 반격 기회: 예고(0.8초)의 마지막 CFG.counterWin 초, 보스 가까이 (보스 머리 위 노란 마름모가 거의 다 줄어든 때)
 function counterOpen(b) { return b.state === 'tele' && b.st >= 0.8 - CFG.counterWin && Math.abs(P.x + P.w / 2 - (b.x + b.w / 2)) < CFG.counterRange; }
 function bossVulnerable(b) { return b.state === 'recover' || b.state === 'kneel' || b.state === 'stagger'; }
-function bossSet(b, s) { b.state = s; b.st = 0; }
+function bossSet(b, s) { b.state = s; b.st = 0; var bs = { tele: 'boss_warning', charge: 'boss_dash', dead: 'boss_down' }[s]; if (bs) sfx(bs); }   // 보스 경고·돌진·쓰러짐 소리
 function updateBoss(b, dt) {
   if (b.hp <= 0) { if (b.state !== 'dead') { bossSet(b, 'dead'); b.y = b.y0; G.items.push({ type: 'C', x: b.x + b.w / 2 - 24, y: b.y + 40, w: 48, h: 34, vx: 0, vy: -260, t: 0, opening: 0 }); openBossWall(b); pop('격파!', b.x + b.w / 2, b.y, '#ffd24a', true); G.shake = 0.5; } b.dead += dt; return; }
   b.st += dt;
@@ -293,7 +293,7 @@ function updateBoss(b, dt) {
       var k = Math.min(1, b.st / BOSS.slamT);
       b.x = b.jx0 + (b.tx - b.jx0) * k; b.jy = -Math.sin(k * Math.PI) * BOSS.slamH; b.y = b.y0 + b.jy;
       if (k >= 1) {
-        b.y = b.y0; b.jy = 0; G.shake = 0.4; bossSet(b, 'recover');
+        b.y = b.y0; b.jy = 0; G.shake = 0.4; sfx('boss_slam'); bossSet(b, 'recover');
         G.slamFx = { x: b.x + b.w / 2, y: b.y0 + b.h, t: 0 };
         if (P.onGround && Math.abs(P.x + P.w / 2 - (b.x + b.w / 2)) < BOSS.slamR) hurt(b.x + b.w / 2);   // 땅이 울리는 반경 안에서 땅에 서 있으면 다친다 (뛰어 피함)
       }
@@ -321,7 +321,7 @@ function inputDir() { if (P && P.lockIn > 0) return { x: 0, up: false }; return 
 function tag(ci) {
   if (G.mode !== 'play' || G.ult || G.dying > 0) return false;
   if (G.lv.chars.indexOf(ci) < 0) return false;                          // 없는 캐릭터의 키는 아무 일도 하지 않는다
-  if (G.stack < 1) { G.stackShake = 0.3; return false; }                 // 스택 0 이면 태그가 안 된다
+  if (G.stack < 1) { G.stackShake = 0.3; sfx('deny'); return false; }                 // 스택 0 이면 태그가 안 된다
   var cb = boss();
   if (cb && counterOpen(cb)) {                                           // 보스 반격: 보스 공격 예고가 끝나는 순간에 맞춘 태그 (게임 2 의 핵심 재미)
     damage(cb, CFG.counterDmg, 'counter'); bossSet(cb, 'stagger'); cb.vx = 0; cb.y = cb.y0; cb.jy = 0;
@@ -329,7 +329,7 @@ function tag(ci) {
     pop('반격!', P.x + P.w / 2, P.y - 84, '#ffd740', true);
     P.inv = Math.max(P.inv, 0.8); G.gauge = Math.min(100, G.gauge + CFG.gaugePerfect); G.stats.counters = (G.stats.counters || 0) + 1;
     G.flash = 0.25; G.hitstop = 0.2; G.shake = Math.max(G.shake, 0.3); G.cutin = { ci: ci, t: 0 };
-    sfx('perfect');
+    sfx('boss_counter');
   }
   if (ci === P.char) {                                                   // 지금 캐릭터의 키: 자기 기술 (스택 1, 바뀌는 것이 없으니 PERFECT·에코 없음)
     if (P.skill) return false;
@@ -379,7 +379,7 @@ function tag(ci) {
 // 스택 돌려받기. 같은 캐릭터로는 CFG.refundLock 초 동안 한 번만 (무한 돌진·점프 막기, 2026-11-24 사용자)
 function refund(ci) {
   if (G.time < (G.refundLock[ci] || 0)) { pop('돌려받기 대기', P.x + P.w / 2, P.y - 40, '#9aa6bb', false); return false; }
-  G.stack = Math.min(CFG.stackMax, G.stack + 1);
+  G.stack = Math.min(CFG.stackMax, G.stack + 1); sfx('stack_refund');
   G.stackFlash = 0.6;                                                       // HUD 스택 칸에 +1 과 반짝임
   G.refundLock[ci] = G.time + CFG.refundLock;
   return true;
@@ -406,7 +406,7 @@ function startSkill(ci, dir) {
   var s = { ci: ci, t: 0, hit: [], perfectGiven: false };
   if (G.form === 'atk') {
     s.type = ['claw', 'spikes', 'upper'][ci]; s.dur = ATK[s.type].dur; s.vx = 0; s.vy = ci === 2 ? -260 : 0;
-    sfx(['dash', 'ice', 'wind'][ci]); P.skill = s; P.vx = 0; P.vy = Math.min(P.vy, s.vy); return;
+    sfx(['attack_fire', 'attack_ice', 'attack_wind'][ci]); P.skill = s; P.vx = 0; P.vy = Math.min(P.vy, s.vy); return;
   }
   if (ci === 0) { s.type = 'dash'; s.dur = CFG.dashT; s.vx = P.face * CFG.dashV; s.vy = 0; sfx('dash'); }
   else if (ci === 1) {
@@ -454,7 +454,7 @@ function damage(en, n, from) {
   if (en.type !== 'B') {
     en.stun = from === 'ice' ? 0.9 : 0.4;                                // 얼음 가시는 오래 얼린다
     if (from === 'wind' && en.type === 'g') en.vy = -420;               // 바람은 적을 띄운다
-    if (en.hp <= 0) { en.dead = 0.001; burst(en.x + en.w / 2, en.y + en.h / 2, '#ffffff', 12); }
+    if (en.hp <= 0) { en.dead = 0.001; burst(en.x + en.w / 2, en.y + en.h / 2, '#ffffff', 12); sfx('enemy_down'); }
   }
 }
 function skillHits(box, hitList, from, onFirst, mul) {
@@ -493,7 +493,8 @@ function clearStage() {
   G.lastGot = got;
   var total = got.slice();
   if (!G.test && G.levelIndex >= 0) { total = mergeStars(G.lv.id, got); writeSave(SAVE); }
-  sfx('clear');
+  sfx(G.lv.boss ? 'game_clear' : 'clear');   // 결과 창: 보통 클리어, 마지막은 게임 클리어
+  if (!TEST) got.forEach(function (s, i) { if (s) setTimeout(function () { sfx('ui_star'); }, 450 + i * 220); });   // 얻은 별마다 한 번씩 (별 사이 0.22초)
   if (G.lv.boss) { G.mode = 'gameclear'; showGameClear(got); }
   else { G.mode = 'clear'; showClear(got, total); }
 }
@@ -509,16 +510,19 @@ function update(dt) {
 function step(dt, first) {
   G.time += dt;
   if (G.dying > 0) { G.dying -= dt; if (G.dying <= 0) restartStage(); return; }
-  if (G.doorAnim) { G.doorAnim.t += dt; tickFx(dt); if (G.doorAnim.t >= doorDur()) clearStage(); return; }   // 문이 열리는 동안은 멈춤
+  if (G.doorAnim) { var da = G.doorAnim, dt0 = da.t; da.t += dt; tickFx(dt);
+    if (G.lv.boss) { for (var ci2 = 1; ci2 < 4; ci2++) if (dt0 < ci2 * DOOR.cupT && da.t >= ci2 * DOOR.cupT) sfx('cup_insert_' + (ci2 + 1)); if (dt0 < DOOR.cupT * 4 && da.t >= DOOR.cupT * 4) sfx('world_door_open'); }   // 잔 넷이 끼워지는 소리와 월드 문 열림
+    if (da.t >= doorDur()) clearStage(); return; }   // 문이 열리는 동안은 멈춤
   if (!G.ult) G.runTime += dt;
   // 입력
   if (first) {
-    if (pressed.form && !G.ult) { G.form = G.form === 'move' ? 'atk' : 'move'; pop(G.form === 'atk' ? '공격폼' : '이동폼', P.x + P.w / 2, P.y - 20, G.form === 'atk' ? '#ff9a5a' : '#9fe6ff', false); sfx('tag'); }
+    if (pressed.form && !G.ult) { G.form = G.form === 'move' ? 'atk' : 'move'; sfx(G.form === 'atk' ? 'form_attack' : 'form_move'); pop(G.form === 'atk' ? '공격폼' : '이동폼', P.x + P.w / 2, P.y - 20, G.form === 'atk' ? '#ff9a5a' : '#9fe6ff', false); sfx('tag'); }
     if (pressed.up) interact();   // ↑: 상자 열기·문 열기
     if (pressed.tag0) tag(0);
     if (pressed.tag1) tag(1);
     if (pressed.tag2) tag(2);
     if (pressed.ult && G.gauge >= 100 && !P.skill && !G.ult) { G.ult = { t: 0, hitDone: false }; G.gauge = 0; sfx('ult'); }
+    if (G.gauge >= 100 && !G.gaugeSnd) { G.gaugeSnd = true; sfx('gauge_full'); } else if (G.gauge < 100) G.gaugeSnd = false;   // 게이지가 가득 찬 순간 한 번
     if (pressed.atk && P.atkCD <= 0 && !P.skill && !G.ult) { P.atk = CFG.atkT; P.atkCD = CFG.atkCD; P.atkHit = []; sfx('atk'); }
     if (pressed.jump) P.buf = CFG.buffer;
   }
@@ -528,7 +532,8 @@ function step(dt, first) {
   G.gauge = Math.min(100, G.gauge);
   // 합동 필살기 (problem.md 20줄): 빨강 돌진 → 파랑 활주 → 바람 상승 → 셋이 함께 마무리
   if (G.ult) {   // 합동 필살기 : 체인 에코 — ver.2 — 공격마다 한 번씩 맞힘 (용의 돌진·얼음비·폭풍 1씩, 합동 일격 3. 보스는 2씩). 범위는 화면 전체
-    var ut0 = G.ult.t; G.ult.t += dt; G.ult.hits = G.ult.hits || 0; G.ultHits = (G.ultHits || []).filter(function (h) { h.t += dt; return h.t < 0.3; }); G.enemies.forEach(function (en) { if (en.hitFl > 0) en.hitFl -= dt; });
+    var ut0 = G.ult.t; G.ult.t += dt; G.ult.hits = G.ult.hits || 0; G.ult.si = G.ult.si || 0;
+    while (G.ult.si < ULT_SND.length && G.ult.t >= ULT_SND[G.ult.si][0]) sfx(ULT_SND[G.ult.si++][1]);   // 장면마다 소리 한 번 (효과음 팩의 타임라인) G.ultHits = (G.ultHits || []).filter(function (h) { h.t += dt; return h.t < 0.3; }); G.enemies.forEach(function (en) { if (en.hitFl > 0) en.hitFl -= dt; });
     while (G.ult.hits < ULT.hits.length && G.ult.t >= ULT.hits[G.ult.hits]) {
       var hi = G.ult.hits++; G.shake = hi === 3 ? 0.7 : 0.35; G.flash = hi === 3 ? 0.12 : 0.05; G.hitstop = hi === 3 ? 0.12 : 0.06; G.ultHits = G.ultHits || [];
       G.enemies.forEach(function (en) {
@@ -585,6 +590,8 @@ function step(dt, first) {
   // 보스가 깨어나면 경기장 밖으로 나가지 못한다
   var bb = boss(); if (bb && bb.state !== 'sleep' && bb.hp > 0 && P.x < bb.arenaL) { P.x = bb.arenaL; P.vx = Math.max(0, P.vx); }
   // 마지막으로 디딘 안전한 자리 (두 발 아래가 모두 땅·발판이고 얼음 길 위가 아닐 때)
+  if (P.onGround && !P.wasG && (P.airT || 0) > 0.35) sfx('land');   // 높은 데서 내려선 순간
+  P.airT = P.onGround ? 0 : (P.airT || 0) + dt; P.wasG = P.onGround;
   if (P.onGround && !P.onIce && !P.skill) {
     var fr2 = Math.floor((P.y + P.h + 2) / TS), cl = Math.floor((P.x + 2) / TS), cr = Math.floor((P.x + P.w - 2) / TS);
     if ((solidAt(cl, fr2) || oneAt(cl, fr2)) && (solidAt(cr, fr2) || oneAt(cr, fr2))) P.safe = { x: P.x, y: P.y, face: P.face };
@@ -599,7 +606,7 @@ function step(dt, first) {
     return;
   }
   // 얼음 길 수명
-  if (G.ice && G.ice.done) { G.ice.life -= dt; if (G.ice.life <= 0) { G.ice.segs.forEach(function (s) { burst(s.x + s.w / 2, s.y, '#cfefff', 2); }); G.ice = null; } }
+  if (G.ice && G.ice.done) { G.ice.life -= dt; if (G.ice.life <= 0) { G.ice.segs.forEach(function (s) { burst(s.x + s.w / 2, s.y, '#cfefff', 2); }); G.ice = null; sfx('ice_break'); } }
   // 에코
   G.echoes.forEach(function (e) {
     e.t += dt; e.x += e.vx * dt; e.y += e.vy * dt;
@@ -687,11 +694,22 @@ function tickFx(dt) {
   G.flash = Math.max(0, G.flash - dt); G.stackFlash = Math.max(0, (G.stackFlash || 0) - dt); G.flashRed = Math.max(0, (G.flashRed || 0) - dt); G.shake = Math.max(0, G.shake - dt); G.stackShake = Math.max(0, (G.stackShake || 0) - dt);
 }
 
-// ===== 소리 (작업 8 에서 ChipTone 생성음으로 바꾼다. 지금은 코드로 낸 짧은 음) =====
-var AC = null;
+// ===== 소리 (2026-11-24 사용자 효과음 팩 "CHAIN_ECHO_Sound_Pack": 레퍼런스와 방향을 정해 AI 로 만든 합성음, assets/sfx/ · 설명은 assets/sfx/README.md) =====
+// 파일을 미리 불러 두고, 부를 때마다 복사본을 재생 (겹쳐 울릴 수 있게). 같은 소리는 45ms 안에 두 번 울리지 않음. 파일이 없거나 실패하면 예전 코드 음으로
+var SND_GAIN = { jump: 0.48, atk: 0.5, tag: 0.58, perfect: 0.78, dash: 0.65, ice: 0.58, wind: 0.6, hit: 0.46, hurt: 0.65, fall: 0.6, treasure: 0.68, clear: 0.72, ult: 0.7, land: 0.34,
+  attack_fire: 0.65, attack_ice: 0.65, attack_wind: 0.65, ice_break: 0.42, form_move: 0.48, form_attack: 0.48, enemy_down: 0.43, stack_refund: 0.57, gauge_full: 0.63, deny: 0.37,
+  boss_warning: 0.68, boss_counter: 0.8, boss_slam: 0.75, boss_dash: 0.64, boss_down: 0.75, ult_dragon: 0.76, ult_ice_rain: 0.68, ult_wind_storm: 0.68, ult_cutin: 0.74, ult_charge: 0.72,
+  ult_finale: 0.85, ult_after: 0.42, chest_open: 0.66, relic_gain: 0.78, cup_insert_1: 0.64, cup_insert_2: 0.64, cup_insert_3: 0.64, cup_insert_4: 0.64, door_open: 0.68,
+  world_door_open: 0.78, game_clear: 0.78, ui_move: 0.32, ui_confirm: 0.44, ui_back: 0.38, ui_pause: 0.4, ui_star: 0.4 };
+var SND = {}, SND_LAST = {}, SND_MASTER = 0.65, AC = null;
+function loadSounds() { if (TEST || typeof Audio === 'undefined') return; Object.keys(SND_GAIN).forEach(function (id) { var a = new Audio(); a.preload = 'auto'; a.src = BASE + 'assets/sfx/' + id + '.wav?v=48'; SND[id] = a; }); }
 function sfx(name) {
   if (TEST) return;
-  try {
+  if (name === 'hit' && G.ult) return;                                   // 체인 에코 동안 적중음은 장면 소리에 맡김 (겹쳐 시끄럽지 않게)
+  var now = Date.now(); if (SND_LAST[name] && now - SND_LAST[name] < 45) return; SND_LAST[name] = now;
+  var a = SND[name];
+  if (a && !a.error) { try { var c = a.cloneNode(); c.volume = Math.min(1, SND_MASTER * (SND_GAIN[name] || 0.6)); var p = c.play(); if (p && p.catch) p.catch(function () {}); return; } catch (e) {} }
+  try {                                                                  // 예비: 예전 코드 음
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
     var t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain();
     var spec = { jump: [520, 0.08, 'square', 0.05], atk: [300, 0.06, 'square', 0.05], tag: [660, 0.08, 'triangle', 0.08], perfect: [1320, 0.25, 'triangle', 0.14],
@@ -699,8 +717,6 @@ function sfx(name) {
       hurt: [140, 0.2, 'sawtooth', 0.08], fall: [200, 0.3, 'sine', 0.07], treasure: [990, 0.2, 'triangle', 0.1], clear: [784, 0.4, 'triangle', 0.12], ult: [260, 0.6, 'sawtooth', 0.1] }[name];
     if (!spec) return;
     o.type = spec[2]; o.frequency.setValueAtTime(spec[0], t);
-    if (name === 'perfect' || name === 'clear' || name === 'treasure') o.frequency.exponentialRampToValueAtTime(spec[0] * 1.5, t + spec[1]);
-    if (name === 'fall' || name === 'hurt') o.frequency.exponentialRampToValueAtTime(spec[0] * 0.5, t + spec[1]);
     g.gain.setValueAtTime(spec[3], t); g.gain.exponentialRampToValueAtTime(0.0001, t + spec[1]);
     o.connect(g); g.connect(AC.destination); o.start(t); o.stop(t + spec[1] + 0.02);
   } catch (e) {}
@@ -1224,9 +1240,9 @@ function interact() {   // ↑: 가까운 상자를 열거나 문을 연다
   var ch = G.items.filter(function (it) { return it.type === 'C' && !it.opening && overlap(P, { x: it.x - 12, y: it.y - 20, w: it.w + 24, h: it.h + 24 }); })[0];
   if (ch) {
     ch.opening = 0.001; G.hpMax = CFG.hp + 1; G.hp = G.hpMax; G.relicPop = { t: 0 }; G.heartNew = 1.5;   // 2026-11-24 사용자 "획득한 만큼 체력이 차야": 늘어난 칸까지 가득
-    G.flash = 0.2; G.shake = 0.2; burst(ch.x + ch.w / 2, ch.y, '#ffe08a', 24); sfx('treasure'); return;
+    G.flash = 0.2; G.shake = 0.2; burst(ch.x + ch.w / 2, ch.y, '#ffe08a', 24); sfx('chest_open'); setTimeout(function () { sfx('relic_gain'); }, 450); return;   // 상자 열림 → 생명의 잔 획득
   }
-  if (nearDoor()) { G.doorAnim = { t: 0, cups: G.lv.boss ? 4 : 0, fx: P.x + P.w / 2, fy: P.y + P.h / 2 }; P.vx = 0; P.skill = null; sfx('clear'); }
+  if (nearDoor()) { G.doorAnim = { t: 0, cups: G.lv.boss ? 4 : 0, fx: P.x + P.w / 2, fy: P.y + P.h / 2 }; P.vx = 0; P.skill = null; sfx(G.lv.boss ? 'cup_insert_1' : 'door_open'); }   // 보통 문 소리, 월드 문은 첫 잔 소리 (나머지 잔·문은 열리는 동안)
 }
 function openBossWall(b) {   // 보스 뒤 벽 (열 78) 을 땅 위만 열어 지나갈 수 있게
   var c = Math.floor(b.arenaR / TS); for (var r = 0; r < ROWS; r++) if (G.lv.g[r][c] === '#' && G.lv.g[r][c - 1] !== '#') { G.lv.g[r][c] = ' '; if (r > 7) burst(c * TS + TS / 2, r * TS + TS / 2, '#b9a58a', 4); }   // 옆 칸이 빈 높이만 (바닥은 남김)
@@ -1498,11 +1514,12 @@ var SPR = { files: ['char-red', 'char-blue', 'char-green'], face: [1, 1, 1], foo
     CH2.names.forEach(function (n) { var im = newImg(); im.onload = function () { CH2.fr[ci][n] = im; CH2.count++; }; im.src = BASE + 'assets/char/' + k + '-' + n + '.png'; });
   });
   UI_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { UIIMG[n] = im; }; im.src = BASE + 'assets/ui/' + n + '.png'; });
-  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=46'; });
-  [['tornado', 'tornado'], ['windStart', 'wind-start'], ['windEnd', 'wind-end']].forEach(function (p) { var im = newImg(); im.onload = function () { ULTIMG[p[0]] = im; }; im.src = BASE + 'assets/ult/' + p[1] + '.png?v=46'; });
-  ['dragon', 'ice', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : k === 'dragon' ? 3 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=46'; })(i); });
-  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=46';
-  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=46'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
+  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=48'; });
+  loadSounds();   // 효과음 (assets/sfx/)
+  [['tornado', 'tornado'], ['windStart', 'wind-start'], ['windEnd', 'wind-end']].forEach(function (p) { var im = newImg(); im.onload = function () { ULTIMG[p[0]] = im; }; im.src = BASE + 'assets/ult/' + p[1] + '.png?v=48'; });
+  ['dragon', 'ice', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : k === 'dragon' ? 3 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=48'; })(i); });
+  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=48';
+  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=48'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
 })();
 // ===== 걷기 몸짓 (2026-11-24 사용자 "슬라이드해서 움직이는 것처럼 … 걸어가는 모션을 정확하게", "팔 다리등의 움직임이 같이 들어가면"):
 // 서 있는 그림(idle0)을 윗몸·뒷다리·앞다리·뒷팔·앞팔로 나눠 움직인다. 걸음은 시간이 아니라 걸어간 거리로 맞춰 발이 미끄러지지 않게.
@@ -1986,6 +2003,7 @@ function drawUltScreen() {   // 화면 좌표: ① 제목, ⑤ 원을 셋으로 
   }
   if (t < ULT.wind[1]) fancyText('체인 에코', W / 2, 140, 40 * (t < 0.12 ? 0.7 + t / 0.12 * 0.3 : 1), POP_STYLE._);   // ① 연계 시작
 }
+var ULT_SND = [[0.15, 'ult_dragon'], [0.4, 'ult_ice_rain'], [0.65, 'ult_wind_storm'], [1.35, 'ult_cutin'], [1.85, 'ult_charge'], [2.25, 'ult_finale'], [2.8, 'ult_after']];
 var ULTIMG = { dragon: [], ice: [], fin: [], tornado: null, windStart: null, windEnd: null, faces: null };   // 합동 필살기 그림 (assets/ult/)
 function ultFr(n, k) { var a = ULTIMG[n], c = n === 'fin' ? 8 : 6; return a && a[Math.max(0, Math.min(c - 1, Math.floor(k * c)))]; }
 // 체인 에코를 쓸 수 있을 때 (2026-11-24 사용자 "아우라도 문제가 많아" → 도트로 다시): 발밑에 세 속성 색이 번갈아 도는 작은 빛, 몸 둘레로 불·얼음·바람 색 네모 알갱이가 천천히 솟음
@@ -2329,8 +2347,8 @@ function makeMenu(overlay, buttons, onChoose, onEsc) {
   function refresh() { buttons.forEach(function (b, i) { if (b && b.classList) b.classList.toggle('sel', i === sel); }); }
   buttons.forEach(function (b, i) {
     if (!b || !b.addEventListener) return;
-    b.addEventListener('click', function () { if (open) onChoose(i); });
-    b.addEventListener('mouseenter', function () { if (open) { sel = i; refresh(); } });
+    b.addEventListener('click', function () { if (open) { sfx('ui_confirm'); onChoose(i); } });
+    b.addEventListener('mouseenter', function () { if (open && sel !== i) { sel = i; refresh(); sfx('ui_move'); } });
   });
   return {
     open: function (first) { open = true; sel = first || 0; refresh(); if (overlay) overlay.classList.remove('hidden'); },
@@ -2340,9 +2358,9 @@ function makeMenu(overlay, buttons, onChoose, onEsc) {
     key: function (e) {
       if (!open) return false;
       var k = e.key;
-      if (k === 'Escape') { if (onEsc && !e.repeat) onEsc(); return true; }
-      if (k === 'Enter' || k === ' ') { if (e.preventDefault) e.preventDefault(); if (!e.repeat) onChoose(sel); return true; }
-      if (k === 'ArrowUp' || k === 'ArrowDown') { if (e.preventDefault) e.preventDefault(); sel = (sel + (k === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length; refresh(); return true; }
+      if (k === 'Escape') { if (onEsc && !e.repeat) { sfx('ui_back'); onEsc(); } return true; }
+      if (k === 'Enter' || k === ' ') { if (e.preventDefault) e.preventDefault(); if (!e.repeat) { sfx('ui_confirm'); onChoose(sel); } return true; }
+      if (k === 'ArrowUp' || k === 'ArrowDown') { if (e.preventDefault) e.preventDefault(); sel = (sel + (k === 'ArrowUp' ? -1 : 1) + buttons.length) % buttons.length; refresh(); sfx('ui_move'); return true; }
       return true;
     }
   };
@@ -2376,7 +2394,7 @@ function showGameClear(got) {
   $('gc-info').textContent = '1-5 걸린 시간 ' + G.runTime.toFixed(1) + '초 · 모은 별 ' + total + ' / ' + (LEVELS.length * 3);
   menus.gameclear.open(0);
 }
-function pauseGame() { if (G.mode !== 'play' || G.dying > 0) return; G.mode = 'pause'; menus.pause.open(0); }
+function pauseGame() { if (G.mode !== 'play' || G.dying > 0) return; G.mode = 'pause'; sfx('ui_pause'); menus.pause.open(0); }
 function resumeGame() { menus.pause.close(); G.mode = 'play'; keys = {}; }
 
 if (document.getElementById('title')) {

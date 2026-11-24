@@ -20,7 +20,8 @@
   /* 판: 모서리를 깎은 남색 판, 청동 바깥선 + 금 안쪽선 */
   .menu { display:flex; flex-direction:column; align-items:center; gap:8px; min-width:320px; }
   /* 제목 글씨: PERFECT 글자처럼 굵은 기울임, 금빛 그러데이션, 어두운 테두리와 빛 */
-  .logo { margin:0; font-size:64px; font-weight:900; font-style:italic; letter-spacing:3px; line-height:1;
+  @font-face { font-family:'Jersey10'; src:url('assets/fonts/Jersey10.ttf'); }   /* 제목 글꼴: Jersey 10 (SIL OFL, assets/fonts/OFL-Jersey10.txt). 2026-11-24 사용자가 후보 셋 가운데 고름 */
+  .logo { margin:0; font-family:'Jersey10', 'Malgun Gothic', sans-serif; font-size:92px; font-weight:400; letter-spacing:5px; line-height:1;
           background: linear-gradient(180deg, #fffbe0 0%, #ffd24a 50%, #ff9a3a 100%); -webkit-background-clip:text; background-clip:text; color:transparent;
           filter: drop-shadow(0 0 0 #4a2600) drop-shadow(2px 0 0 #4a2600) drop-shadow(-2px 0 0 #4a2600) drop-shadow(0 3px 0 #4a2600) drop-shadow(0 0 14px rgba(255,200,80,0.6)); }
   h2 { margin:0 0 4px; font-size:30px; font-weight:900; font-style:italic; letter-spacing:2px;
@@ -60,7 +61,6 @@
 
   <div id="title" class="overlay">
     <h1 class="logo">CHAIN ECHO</h1>
-    <div class="sub">세 캐릭터를 태그로 이어 길을 여는 2D 플랫포머 (가칭, 데모)</div>
     <div class="trio">
       <div><img src="assets/char/red-big.png" alt="플레아"><span>A 플레아</span></div>
       <div><img src="assets/char/blue-big.png" alt="오필리아"><span>S 오필리아</span></div>
@@ -118,6 +118,6 @@
     </div>
   </div>
 </div>
-<script src="./game.js?v=46"></script>   <!-- ?v= 를 바꾸면 브라우저가 예전 파일을 쓰지 않고 새로 읽는다 -->
+<script src="./game.js?v=49"></script>   <!-- ?v= 를 바꾸면 브라우저가 예전 파일을 쓰지 않고 새로 읽는다 -->
 </body>
 </html>
