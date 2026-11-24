@@ -1,0 +1,53 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>체인 에코 영상</title>
+<!-- 합동 필살기 체인 에코를 실제 게임 화면으로 되풀이해 보여 주는 쪽. 더블클릭으로 열면 된다.
+     "영상으로 저장"을 누르면 한 번 도는 동안 녹화해 .webm 파일로 내려받는다 (브라우저의 MediaRecorder 기능, 크롬·엣지에서 동작) -->
+<style>
+  body { margin: 0; background: #0b0d18; color: #e8e2d0; font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 14px; }
+  canvas { width: min(960px, 100%); height: auto; border: 2px solid #c9a24a; border-radius: 6px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid #c9a24a; background: #1c2140; color: #ffe9b0; cursor: pointer; }
+  button.on { background: #c9a24a; color: #1c2140; }
+  #msg { font-size: 14px; color: #b9c3e0; min-height: 1.2em; }
+</style></head><body>
+<canvas id="game" width="960" height="544"></canvas>
+<div class="bar">
+  <button data-s="1" class="on">보통 속도</button><button data-s="0.5">0.5배 느리게</button><button data-s="0.25">0.25배 느리게</button>
+  <button id="rec">영상으로 저장 (.webm)</button>
+</div>
+<div id="msg">불러오는 중…</div>
+<script>window.G3_TEST = true; window.G3_SHOT = true;</script>
+<script src="../game.js"></script>
+<script>
+(function () {
+  var g3 = window.G3, TS = g3.TS, cv = document.getElementById('game'), msg = document.getElementById('msg');
+  var speed = 1, acc = 0, last = 0, pause = 0, recorder = null;
+  function put(col, row) { var p = g3.P; p.x = col * TS + 4; p.y = (row + 1) * TS - p.h; p.vx = 0; p.vy = 0; g3.G.cam = Math.max(0, p.x - 400); }
+  function start() {   // 1-4 의 적이 모인 곳에서, 게이지를 채우고 0.6초 서 있다가 (세 속성 빛) 체인 에코
+    g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; pause = 0.6;
+  }
+  var after = 0;
+  function frame(ts) {
+    var dt = last ? Math.min(0.05, (ts - last) / 1000) : 1 / 60; last = ts; acc += dt * speed;
+    while (acc >= 1 / 60) {
+      acc -= 1 / 60;
+      if (pause > 0) { pause -= 1 / 60; g3.update(1 / 60); if (pause <= 0) { g3.press('ult'); g3.update(1 / 60); g3.release('ult'); } }
+      else if (g3.G.ult) g3.update(1 / 60);
+      else { after += 1 / 60; g3.update(1 / 60); if (after > 0.8) { after = 0; if (recorder && recorder.state === 'recording') recorder.stop(); start(); } }
+    }
+    g3.draw(); tick();
+  }
+  var TIMER = /timer=1/.test(location.search);   // 화면 없는 크롬 검사용: 그리기 신호 대신 시계로 돈다
+  function tick() { if (TIMER) setTimeout(function () { frame(performance.now()); }, 16); else requestAnimationFrame(frame); }
+  function ready() { msg.textContent = '체인 에코를 되풀이해 보여 줍니다. 아래 단추로 속도를 바꿀 수 있습니다.'; start(); tick(); }
+  var w0 = Date.now(); (function wait() { var L = g3.LOAD(); if ((L && L.done >= L.total) || Date.now() - w0 > 8000) ready(); else setTimeout(wait, 100); })();
+  [].forEach.call(document.querySelectorAll('[data-s]'), function (b) { b.onclick = function () { speed = +b.dataset.s; [].forEach.call(document.querySelectorAll('[data-s]'), function (x) { x.classList.toggle('on', x === b); }); }; });
+  document.getElementById('rec').onclick = function () {
+    if (!cv.captureStream || !window.MediaRecorder) { msg.textContent = '이 브라우저는 녹화를 지원하지 않습니다. 크롬이나 엣지로 열어 주세요.'; return; }
+    var chunks = [], type = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
+    recorder = new MediaRecorder(cv.captureStream(60), { mimeType: type, videoBitsPerSecond: 8000000 });
+    recorder.ondataavailable = function (e) { if (e.data.size) chunks.push(e.data); };
+    recorder.onstop = function () { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' })); a.download = 'chain-echo.webm'; a.click(); msg.textContent = '저장했습니다: chain-echo.webm (내려받기 폴더)'; recorder = null; };
+    after = 0; start(); recorder.start(); msg.textContent = '녹화 중… (한 번 돌면 저절로 저장됩니다)';
+  };
+})();
+</script></body></html>

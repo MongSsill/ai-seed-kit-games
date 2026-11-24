@@ -10,6 +10,8 @@ function clearKeys() { ['left', 'right', 'up', 'jump', 'atk', 'ult'].forEach(fun
 function flat(extra) { return { id: 'T', name: 'T', chars: [0, 1, 2], theme: 'forest', build: function () { var m = g3.Builder(60); m.floor(0, 59).at(5, 13); if (extra) extra(m); return m; } }; }
 function start(def, ch) { clearKeys(); g3.startLevel(def, { test: true }); if (ch != null) g3.P.char = ch; sim(0.1); }
 function G() { return g3.G; } function P() { return g3.P; }
+// 문 앞에 서서 ↑ 를 눌러 문을 연다 (2026-11-24 사용자: 모든 스테이지는 문에서 ↑). 여는 연출을 기다린다
+function openDoor() { var d = G().door; P().x = d.x + d.w / 2 - P().w / 2; P().y = d.y + d.h - P().h; P().vx = 0; sim(0.05); g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(3.0); }
 function run(fn, name) { try { fn(); } catch (e) { ok(false, name || 'error', e && e.stack ? e.stack.split('\n').slice(0, 2).join(' | ') : String(e)); } }
 
 // ---------- 작업 1: 바탕 ----------
@@ -26,21 +28,24 @@ run(function () {
   P().x = 11 * TS + 4; P().vx = CFG.run; g3.press('right'); var t = 0; while (P().onGround && t < 60) { g3.update(1 / 60); t++; } sim(0.05); g3.press('jump'); sim(0.05);
   ok(P().vy < 0, '코요테 타임: 떨어지기 시작한 뒤 0.05초의 점프도 된다', P().vy.toFixed(0)); clearKeys();
 });
-run(function () {
+run(function () {   // 2026-11-24 사용자: 떨어지면 체력 1칸을 잃고 떨어지기 전 마지막 발판에서 다시
   start(flat(function (m) { for (var c = 20; c < 30; c++) for (var r = 14; r < 17; r++) m.g[r][c] = ' '; }));
-  P().x = 24 * TS; P().y = 10 * TS; var tt = 0; while (P().y < 17 * TS + 70 && G().runTime > 0.01 && tt < 200) { g3.update(1 / 60); tt++; } sim(0.1);
-  ok(G().runTime < 1.0 && G().hp === 3 && Math.abs(P().x - 5 * TS - 4) < 6, '틈에 떨어지면 스테이지 처음에서 다시', 'runTime ' + G().runTime.toFixed(2) + ' x ' + P().x.toFixed(0));
+  P().x = 17 * TS; P().y = 13 * TS - P().h; sim(0.2); var sx = P().x;
+  P().x = 24 * TS; P().y = 10 * TS; var tt = 0; while (G().hp === 3 && tt < 200) { g3.update(1 / 60); tt++; }
+  ok(G().hp === 2 && G().hitThisRun && Math.abs(P().x - sx) < 2 && G().runTime > 0.5, '틈에 떨어지면 체력 1칸을 잃고 마지막으로 디딘 자리에서 다시', 'hp ' + G().hp + ' x ' + Math.round(P().x) + ' (디딘 자리 ' + Math.round(sx) + ')');
+  G().hp = 1; P().inv = 0; P().x = 24 * TS; P().y = 10 * TS; tt = 0; while (G().hp > 0 && tt < 200) { g3.update(1 / 60); tt++; } sim(1.0);
+  ok(G().hp === 3 && G().runTime < 1.0 && Math.abs(P().x - 5 * TS - 4) < 6, '마지막 체력에서 떨어지면 스테이지 처음에서 다시', 'hp ' + G().hp + ' x ' + Math.round(P().x));
 });
 run(function () {
   start(flat(function (m) { m.goal(20, 13); }));
-  P().x = 20 * TS + 4; sim(0.1);
-  ok(G().mode === 'clear', '문에 들어가면 클리어', G().mode);
+  P().x = 20 * TS + 4; sim(0.3); ok(G().mode === 'play', '문에 닿기만 해서는 클리어되지 않는다 (↑ 로 연다)', G().mode); openDoor();
+  ok(G().mode === 'clear', '문 앞에서 ↑ 를 누르면 문이 열리고 클리어', G().mode);
   ok(g3.menus.clear.isOpen() && g3.menus.clear.selected() === 0, '클리어 화면은 "다음 스테이지"가 먼저 골라져 있다');
   ok(G().lastGot.join() === '1,1,0', '안 맞고 보물 없이 깨면 별 [1,1,0]', G().lastGot.join());
 });
 run(function () {
   start(flat(function (m) { m.ent('g', 10, 13); }));
-  P().x = 9 * TS; sim(0.2);
+  P().x = 9 * TS; G().enemies[0].t = 0; sim(0.4);   // 슬라임은 가까운 플레이어 쪽으로 기어 온다 (2026-11-24)
   ok(G().hp === 2 && G().hitThisRun, '적에 닿으면 체력 1칸 줄고 "맞음"이 남는다', 'hp ' + G().hp);
   var hp = G().hp; sim(0.3); ok(G().hp === hp, '맞은 뒤 무적 시간 동안은 더 줄지 않는다');
   G().hp = 1; P().inv = 0; P().skill = null; var e = G().enemies[0]; if (e) { e.x = P().x; e.y = P().y + P().h - e.h; e.stun = 0; } sim(0.05);
@@ -49,7 +54,7 @@ run(function () {
 run(function () {
   start(flat(function (m) { m.ent('T', 12, 13); }));
   P().x = 12 * TS + 4; sim(0.1); ok(G().treasure, '보물을 얻는다');
-  start(flat(function (m) { m.ent('T', 12, 13); m.goal(20, 13); })); P().x = 12 * TS + 4; sim(0.1); P().x = 20 * TS + 4; sim(0.1);
+  start(flat(function (m) { m.ent('T', 12, 13); m.goal(20, 13); })); P().x = 12 * TS + 4; sim(0.1); openDoor();
   ok(G().lastGot && G().lastGot.join() === '1,1,1', '보물을 얻고 안 맞고 깨면 별 셋', G().lastGot && G().lastGot.join());
 });
 
@@ -57,13 +62,13 @@ run(function () {
 group = '[태그]';
 run(function () {
   start(flat(), 0);
-  ok(G().stack === 2, '스택은 2 로 시작');
-  ok(g3.tag(0) === true && G().stack === 1 && P().char === 0 && P().skill && P().skill.type === 'dash' && G().lastTag.self, '지금 캐릭터의 키는 자기 기술 (스택 1 을 쓴다)'); sim(0.5); G().stack = 2; G().regen = 0;
-  ok(g3.tag(1) === true && G().stack === 1 && P().char === 1, '태그하면 그 캐릭터로 바뀌고 스택 1 을 쓴다');
+  ok(G().stack === 3, '스택은 3 으로 시작 (2026-11-24 2 에서 3)');
+  ok(g3.tag(0) === true && G().stack === 2 && P().char === 0 && P().skill && P().skill.type === 'dash' && G().lastTag.self, '지금 캐릭터의 키는 자기 기술 (스택 1 을 쓴다)'); sim(0.5); G().stack = 3; G().regen = 0;
+  ok(g3.tag(1) === true && G().stack === 2 && P().char === 1, '태그하면 그 캐릭터로 바뀌고 스택 1 을 쓴다');
   ok(P().skill && P().skill.type === 'slide', '태그하면 기술이 저절로 나간다 (NORMAL 에서도, T01)');
   ok(G().lastTag.perfect === false, '적이 없으면 NORMAL (T01)');
-  sim(0.4); g3.tag(0); ok(G().stack === 0, '두 번 태그하면 스택 0');
-  sim(0.4); ok(g3.tag(1) === false, '스택 0 이면 태그가 안 된다');
+  sim(0.6); g3.tag(0); sim(0.6); g3.tag(2); ok(G().stack === 0, '세 번 태그하면 스택 0 (이동 연계 기회가 지난 뒤)');
+  sim(0.4); ok(g3.tag(0) === false, '스택 0 이면 태그가 안 된다');
   sim(1.7); ok(G().stack >= 1, '2초 뒤 스택 1 이 찬다', G().stack);
   start({ id: 'T', name: 'T', chars: [0, 1], theme: 'forest', build: function () { var m = g3.Builder(40); m.floor(0, 39).at(5, 13); return m; } }, 0);
   ok(g3.tag(2) === false, '1-1 처럼 바람이 없는 스테이지에서는 D 키가 아무 일도 하지 않는다');
@@ -100,34 +105,34 @@ group = '[PERFECT]';
 function fight(build) { start(flat(build), 1); P().face = 1; }
 run(function () {
   fight(function (m) { m.ent('g', 9, 13); });
-  g3.tag(0); var t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; }
+  g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; }
   ok(!!G().perfect, '기술이 적에 맞으면 PERFECT 기회가 생긴다');
   var g0 = G().gauge; ok(g0 === CFG.gaugeNormal, '기술이 적을 맞히면 게이지 +10', g0);
   var stack = G().stack; sim(0.1); g3.tag(1);
   ok(G().lastTag.perfect === true, '맞은 직후 0.25초 안의 태그는 PERFECT (T02)');
-  ok(G().stack === stack, 'PERFECT 면 쓴 스택 1 을 돌려받는다 (T02)', stack + '→' + G().stack);
+  ok(G().stack === stack - 1 && P().skill.dmgMul === CFG.perfectDmgMul, 'PERFECT 면 스택은 돌려받지 않고, 들어오는 기술 대미지 1.5배 (2026-11-24 사용자, 예전 T02 의 돌려받기를 바꿈)', stack + '→' + G().stack);
   ok(G().echoes.length === 1, 'PERFECT 면 에코가 남는다 (T02)');
   ok(G().gauge === g0 + CFG.gaugePerfect, 'PERFECT 면 게이지 +25', G().gauge);
   ok(G().pops.some(function (p) { return p.text === 'PERFECT'; }) && G().flash > 0, "'PERFECT' 글자와 번쩍임 (타이밍 피드백)");
 });
 run(function () {
   fight(); g3.tag(0); sim(0.1); g3.tag(1); ok(G().lastTag.perfect === false, '허공에 쓴 기술 뒤의 태그는 NORMAL (T03)');
-  fight(function (m) { m.ent('g', 9, 13); }); g3.tag(0); var t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; } sim(0.3); g3.tag(1);
+  fight(function (m) { m.ent('g', 9, 13); }); g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; } sim(0.3); g3.tag(1);
   ok(G().lastTag.perfect === false, '0.25초가 지난 태그는 NORMAL (T04)');
-  fight(function (m) { m.ent('g', 9, 13); m.ent('g', 10, 13); }); g3.tag(0); sim(0.2);
+  fight(function (m) { m.ent('g', 9, 13); m.ent('g', 10, 13); }); g3.tag(0); sim(0.28);
   var hits = P().skill ? P().skill.hit.length : -1; var pg = G().perfect && G().perfect.skill;
   ok(hits === 2 && pg && pg.perfectGiven, '두 적을 맞혀도 기술 한 번에 PERFECT 기회는 한 번 (T12)', hits);
 });
 run(function () {
   // T05: PERFECT 로 나온 기술이 맞으면 다시 기회
   fight(function (m) { m.ent('g', 9, 13); m.ent('g', 17, 13); m.ent('g', 18, 13); });
-  g3.tag(0); var t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; } g3.tag(1);
-  var firstWin = G().perfect; t = 0; while (G().perfect === firstWin && t < 40) { g3.update(1 / 60); t++; }
+  g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; } G().enemies.slice(1).forEach(function (e, i) { e.x = P().x - 2 + i * 6; e.t = 0.6; }); g3.tag(2);   // 클로에 상승이 발밑 적을 맞힘 (오필리아 활주는 대미지 없음)
+  var firstWin = G().perfect; t = 0; while ((G().perfect === firstWin || G().perfect.kind === 'move') && t < 40) { g3.update(1 / 60); t++; }
   ok(G().perfect && G().perfect !== firstWin && !G().perfect.used, '태그로 나온 기술이 맞으면 다시 PERFECT 기회 (T05)');
-  g3.tag(0); ok(G().lastTag.perfect, '이어서 PERFECT (T05)');
+  var pw0 = G().perfect, stk = G().stack, tr = g3.tag(0); ok(G().lastTag.perfect, '이어서 PERFECT (T05)', 'tag ' + tr + ' stack ' + stk + ' kind ' + (pw0 && pw0.kind) + ' used ' + (pw0 && pw0.used) + ' left ' + (pw0 && (pw0.until - G().time).toFixed(2)) + ' chain ' + G().lastTag.chain);
 });
 run(function () {
-  fight(function (m) { m.ent('g', 7, 13); }); P().char = 0; g3.press('atk'); sim(0.2); clearKeys();
+  fight(function (m) { m.ent('g', 7, 13); }); P().char = 0; G().enemies[0].x = P().x + P().w + 16; g3.press('atk'); sim(0.2); clearKeys();
   var e = G().enemies[0]; ok(e && e.hp < 3, '기본 공격 F 가 적을 맞힌다'); ok(!G().perfect, '기본 공격으로는 PERFECT 기회가 생기지 않는다');
   ok(G().gauge === 0, '기본 공격은 게이지를 채우지 않는다');
 });
@@ -146,7 +151,7 @@ run(function () {
 run(function () {
   // 에코가 적을 마저 때린다
   fight(function (m) { m.ent('g', 9, 13); m.ent('g', 13, 13); });
-  g3.tag(0); var t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; } g3.tag(2);
+  g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; } g3.tag(2);
   sim(0.3); var e2 = G().enemies.filter(function (e) { return e.x > 12 * TS; })[0];
   ok(e2 && e2.hp < 3, '에코(나가는 빨강의 돌진)가 남은 공격을 마저 한다', e2 && e2.hp);
 });
@@ -156,8 +161,8 @@ group = '[필살기]';
 run(function () {
   start(flat(function (m) { m.ent('g', 12, 13); m.ent('g', 40, 13); })); G().gauge = 100; g3.press('ult'); sim(0.05); clearKeys();
   ok(!!G().ult && G().gauge === 0, 'E 로 합동 필살기, 게이지 0 (T11)');
-  sim(1.2); var near = G().enemies.filter(function (e) { return e.x < 20 * TS; })[0], far = G().enemies.filter(function (e) { return e.x > 30 * TS; })[0];
-  ok(!near || near.hp <= 0 || near.dead, '가까운 적은 필살기에 맞는다'); ok(far && far.hp === 3, '먼 적은 맞지 않는다');
+  sim(3.2); ok(!G().ult, '합동 필살기 체인 에코 ver.2 는 3.1초 뒤 끝난다 (2026-11-24)'); var near = G().enemies.filter(function (e) { return e.x < 20 * TS; })[0], far = G().enemies.filter(function (e) { return e.x > 30 * TS; })[0];
+  ok(!near || near.hp <= 0 || near.dead, '가까운 적은 필살기에 맞는다'); ok(far && far.hp === 3, '화면 밖 먼 적은 맞지 않는다 (범위: 화면 전체)');
   start(flat()); G().gauge = 60; g3.press('ult'); sim(0.05); clearKeys(); ok(!G().ult, '게이지가 차지 않으면 쓸 수 없다');
 });
 
@@ -168,7 +173,7 @@ run(function () {
   g3.LEVELS.forEach(function (def, i) {
     var lv = g3.parseLevel(def);
     ok(!!lv.start, def.id + ' 시작 자리');
-    ok(def.boss ? !lv.door : !!lv.door, def.id + (def.boss ? ' 는 문 대신 보스' : ' 골인 문'));
+    ok(!!lv.door, def.id + (def.boss ? ' 보스 뒤 월드 클리어 문' : ' 골인 문'));
     ok(lv.ents.filter(function (e) { return e.type === 'T'; }).length === 1, def.id + ' 숨겨진 보물 하나');
     ok(i === 0 ? def.chars.join() === '0,1' : def.chars.join() === '0,1,2', def.id + (i === 0 ? ' 는 빨강·파랑 둘' : ' 는 셋'));
     // 태그로만 지나는 곳: 점프로 못 넘는 틈(5칸 이상) 또는 점프로 못 오르는 벽(3칸 이상)
@@ -179,8 +184,8 @@ run(function () {
     ok(lv.hints.length >= 1, def.id + ' 처음 겪는 장애물 앞 짧은 키 표시');
   });
   ok(g3.LEVELS[2].build().hints.some(function (h) { return h.text.indexOf('PERFECT') >= 0; }), '1-3 에 PERFECT 연습 자리');
-  ok(g3.LEVELS[1].build().hints.some(function (h) { return h.text.indexOf('D') === 0; }), '1-2 에서 바람 키를 처음 알린다');
-  ok(g3.LEVELS[3].build().hints.some(function (h) { return h.text.indexOf('E') === 0; }), '1-4 에서 필살기 키를 처음 알린다');
+  ok(g3.LEVELS[1].build().hints.some(function (h) { return h.text.indexOf('[D]') === 0; }), '1-2 에서 클로에 키 [D] 를 처음 알린다');
+  ok(g3.LEVELS[3].build().hints.some(function (h) { return h.text.indexOf('[E]') >= 0; }), '1-4 에서 필살기 키 [E] 를 처음 알린다');
   start(0); ok(g3.activeHint() && g3.activeHint().text.indexOf('이동') >= 0, '1-1 처음 자리에서 이동 키 표시');
   ok(P().char === 0, '스테이지는 빨강으로 시작');
 });
@@ -242,15 +247,123 @@ run(function () {
   var h1 = b.hp; P().char = 1; P().skill = null; P().inv = 0; P().x = b.x - 40; P().y = b.y + b.h - P().h; P().face = 1; g3.tag(0); sim(0.2);
   ok(h1 - b.hp === CFG.skillDmg * 2, '빈틈에는 대미지 2배', h1 - b.hp); ok(!!G().perfect, '보스를 기술로 맞히면 PERFECT 기회');
   b.hp = Math.floor(b.max / 2); P().x = 50 * TS; P().skill = null; sim(0.05); ok(b.state === 'kneel', '체력 절반에서 무방비 구간', b.state);
-  b.hp = 0; sim(0.1); ok(b.state === 'dead' && G().items.some(function (i) { return i.type === 'K'; }), '쓰러뜨리면 클리어 물건이 나온다');
-  var k = G().items.filter(function (i) { return i.type === 'K'; })[0]; sim(1.0); P().x = k.x; P().y = k.y; P().inv = 1; sim(0.05);
-  ok(G().mode === 'gameclear' && g3.menus.gameclear.isOpen(), '물건을 얻으면 게임 클리어 화면', G().mode + ' hp ' + G().hp + ' dying ' + G().dying + ' items ' + G().items.length + ' k ' + Math.round(k.x) + ',' + Math.round(k.y) + ' got ' + k.got + ' p ' + Math.round(P().x) + ',' + Math.round(P().y));
+  b.hp = 0; sim(0.1); var ch = G().items.filter(function (i) { return i.type === 'C'; })[0];
+  ok(b.state === 'dead' && !!ch && G().wallOpen && G().lv.g[10][78] === ' ', '쓰러뜨리면 빛나는 상자가 떨어지고 보스 뒤 벽이 열린다 (2026-11-24)');
+  sim(1.0); var hpb = G().hp; P().inv = 9; P().x = ch.x; P().y = ch.y + ch.h - P().h; sim(0.05); ok(!ch.opening, '상자는 닿기만 해서는 열리지 않는다');
+  g3.press('up'); g3.update(1 / 60); g3.release('up');
+  ok(ch.opening > 0 && G().hpMax === 4 && G().hp === 4 && !!G().relicPop, '↑ 로 상자를 열면 생명의 잔: 최대 체력 4, 늘어난 칸까지 체력이 가득, 획득 판', 'max ' + G().hpMax + ' hp ' + G().hp + ' open ' + ch.opening + ' pop ' + !!G().relicPop);
+  P().x = 84 * TS; sim(0.3); ok(P().x > 80 * TS, '열린 벽 너머로 갈 수 있다', Math.round(P().x / TS));
+  openDoor(); ok(G().mode === 'gameclear' && g3.menus.gameclear.isOpen(), '월드 클리어 문에서 ↑ → 생명의 잔 넷을 끼우고 문이 열린 뒤 게임 클리어 화면', G().mode);
 });
 run(function () {
   start(4); var b = G().enemies.filter(function (e) { return e.type === 'B'; })[0];
   P().x = 52 * TS; sim(0.1); sim(1.0 + 1.3 + 0.9); var t = 0; while (b.state !== 'idle' && t < 400) { g3.update(1 / 60); t++; } P().x = 50 * TS; P().inv = 5; t = 0; while (b.state !== 'tele' && t < 200) { g3.update(1 / 60); t++; } sim(0.85);
   ok(b.state === 'charge', '두 번째 패턴은 돌진', b.state);
   t = 0; while (b.state === 'charge' && t < 300) { g3.update(1 / 60); t++; } ok(b.state === 'recover' && b.x >= b.arenaL - 1, '돌진은 경기장 벽에서 멈추고 빈틈');
+});
+run(function () {   // 2026-11-24 보스 움직임: 걷기와 내려찍기
+  start(4); var b = G().enemies.filter(function (e) { return e.type === 'B'; })[0];
+  P().x = 52 * TS; sim(0.1); sim(1.0); P().inv = 99; var x0 = b.x; P().x = b.arenaL + 2 * TS; sim(0.6);
+  ok(b.state === 'idle' && b.x < x0, '서 있는 동안 플레이어 쪽으로 걸어온다', Math.round(x0) + ' → ' + Math.round(b.x));
+  var t = 0; while (!(b.state === 'tele' && b.pattern === 'slam') && t < 2000) { g3.update(1 / 60); t++; }
+  ok(b.state === 'tele' && b.pattern === 'slam', '세 번째 패턴은 내려찍기 (충격파 → 돌진 → 내려찍기)', b.state + ' ' + b.pattern);
+  P().x = b.arenaL + 6 * TS; sim(0.79); var tx = b.tx; sim(0.2);
+  ok(b.state === 'slam' && b.y < b.y0 - 40, '뛰어오른다', Math.round(b.y0 - b.y));
+  t = 0; while (b.state === 'slam' && t < 200) { g3.update(1 / 60); t++; }
+  ok(b.state === 'recover' && Math.abs(b.x - tx) < 2 && b.y === b.y0, '예고한 자리(그림자)에 떨어진다');
+  P().inv = 0; P().skill = null; var hp0 = G().hp; b.state = 'slam'; b.st = 0.75 - 0.01; b.jx0 = b.x; b.tx = b.x; P().x = b.x + b.w / 2 + 70; P().y = b.y0 + b.h - P().h; sim(0.1);
+  ok(G().hp < hp0, '떨어질 때 가까이 땅에 서 있으면 다친다');
+});
+run(function () {   // 2026-11-24 보스 반격 (게임 2 의 반격)
+  start(4); var b = G().enemies.filter(function (e) { return e.type === 'B'; })[0];
+  P().x = 52 * TS; sim(0.1); P().inv = 99; var t = 0; while (b.state !== 'tele' && t < 400) { g3.update(1 / 60); t++; }
+  P().x = b.x - 120; P().skill = null; sim(0.2); var hp0 = b.hp, st0 = G().stack;
+  ok(!b.countered && g3.tag(1) && b.state === 'tele', '예고 초반의 태그는 반격이 아니다 (그냥 태그)', b.state);
+  t = 0; while (b.state === 'tele' && b.st < 0.6 && t < 60) { g3.update(1 / 60); t++; } P().skill = null; P().char = 0; G().stack = 3; hp0 = b.hp; ok(b.state === 'tele' && b.st >= 0.8 - CFG.counterWin, '예고 마지막 0.3초', b.st.toFixed(2));
+  g3.tag(2); ok(b.state === 'stagger' && hp0 - b.hp === CFG.counterDmg, '그때 태그하면 반격: 대미지 6, 보스 공격이 취소되고 비틀거림', b.state + ' ' + (hp0 - b.hp));
+  ok(G().waves.length === 0 && !!G().counterFx, '충격파가 나가지 않고, 노란 마름모가 꽉 차는 성공 표시');
+  sim(2.3); ok(b.state === 'idle' || b.state === 'tele', '비틀거림 뒤 다시 움직인다', b.state + ' st ' + b.st.toFixed(2) + ' hp ' + b.hp + ' mode ' + G().mode + ' hs ' + G().hitstop + ' dying ' + G().dying + ' php ' + G().hp);
+});
+
+// ---------- 태그 신호 (2026-11-24 사용자 "좋은 판정을 얻을 수 있을 때 시각적인 피드백") ----------
+group = '[태그신호]';
+run(function () {
+  start(flat(function (m) { m.ent('g', 9, 13); }), 1); P().face = 1;   // 오필리아 활주는 대미지가 없어 (2026-11-24) 플레아 돌진으로 맞힘
+  g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 60) { g3.update(1 / 60); t++; }
+  ok(!!G().perfect && G().perfect.len === CFG.perfectWin && G().perfect.until > G().time, '기술이 맞으면 태그 기회(마름모)가 0.25초 열린다');
+  g3.tag(2); ok(!!G().cutin && G().cutin.ci === 2, 'PERFECT 면 들어오는 캐릭터 얼굴 컷인');
+  sim(0.6); ok(!G().cutin, '컷인은 0.5초 뒤 사라진다');
+});
+
+// ---------- 이동 연계와 돌려받기 제한 (2026-11-24 사용자 3번) ----------
+group = '[연계]';
+run(function () {
+  start(flat(), 0); P().face = 1; g3.tag(0);                          // 빨강 자기 기술: 돌진 (0.3초)
+  sim(CFG.dashT - 0.08); var st = G().stack;
+  ok(!!G().perfect && G().perfect.kind === 'move', '이동 기술이 끝나 갈 때 이동 연계 기회(마름모)가 열린다');
+  g3.tag(1); ok(G().lastTag.chain === true && G().lastTag.perfect === false, '그 안에 태그하면 연계 (PERFECT 는 아님)');
+  ok(G().stack === st, '연계면 쓴 스택 1 을 돌려받는다', st + ' → ' + G().stack);
+  ok(P().skill.chained && Math.abs(Math.abs(P().skill.vx) - CFG.slideDist / CFG.slideT * CFG.chainBoost) < 1, '연계로 나온 활주는 1.25배 빠르게 (더 멀리)', P().skill.vx);
+  sim(CFG.slideT - 0.08); g3.tag(0); sim(CFG.dashT - 0.08); st = G().stack; g3.tag(1);
+  ok(G().lastTag.chain === true && G().stack === st - 1, '3초 안에 같은 캐릭터(파랑)로 다시 연계하면 돌려받지 못한다', st + ' → ' + G().stack);
+  sim(CFG.refundLock); G().stack = 2; P().skill = null; P().char = 0; g3.tag(0); sim(CFG.dashT - 0.08); st = G().stack; g3.tag(1);
+  ok(G().stack === st, '3초가 지나면 다시 돌려받는다', st + ' → ' + G().stack);
+  sim(1); P().skill = null; ok(g3.tag(2) && G().lastTag.chain === false, '이동 기술이 끝나고 한참 뒤의 태그는 그냥 태그');
+});
+
+// ---------- 일반 몬스터 움직임 (2026-11-24 사용자 "조금씩 이동하고, 플레이어의 위치에 기반", "시선이 플레이어에게") ----------
+group = '[몬스터]';
+run(function () {   // 2026-11-24 사용자 "박쥐가 캐릭터 앞까지만 가고 부딪히지 않고, 캐릭터가 점프하면 본인도 올라가는 버그"
+  start(flat(function (m) { m.ent('f', 14, 9); }), 0); var f = G().enemies[0]; P().x = 12 * TS; P().y = 13 * TS - P().h; P().inv = 0;
+  var hp0 = G().hp, dived = false, t = 0; while (G().hp === hp0 && t < 360) { g3.update(1 / 60); if (f.mode === 'dive') dived = true; t++; P().inv = Math.min(P().inv, 0); }
+  ok(dived && G().hp < hp0, '박쥐가 내리꽂아 캐릭터에 부딪힌다', 'dive ' + dived + ' hp ' + G().hp);
+  start(flat(function (m) { m.ent('f', 14, 9); }), 0); f = G().enemies[0]; P().x = 12 * TS; P().inv = 99; f.mt = -99;   // 내리꽂기 전 맴돌기만
+  sim(1); var y1 = f.y; P().y = 7 * TS; P().vy = -400; sim(0.3);
+  ok(Math.abs(f.y - y1) < 14, '캐릭터가 점프해도 박쥐 높이는 따라 오르지 않는다', Math.round(y1) + ' → ' + Math.round(f.y));
+});
+run(function () {
+  start(flat(function (m) { m.ent('g', 14, 13); m.ent('f', 30, 9); }), 0); P().inv = 99;
+  var s = G().enemies[0], f = G().enemies[1];
+  P().x = 10 * TS; s.t = 0; var x0 = s.x; sim(0.5);
+  ok(s.face === -1 && s.x < x0, '플레이어가 왼쪽 가까이 있으면 슬라임은 왼쪽을 보고 다가온다', Math.round(x0) + ' → ' + Math.round(s.x));
+  P().x = 17 * TS; sim(0.6); ok(s.face === 1, '플레이어가 오른쪽으로 가면 오른쪽을 본다');
+  P().x = 55 * TS; P().y = 13 * TS - P().h; var sx = s.sx; sim(4);
+  ok(Math.abs(s.x - sx) <= 1.5 * TS + 4, '멀면 제자리 근처(1.5칸)만 천천히 오간다', Math.round(s.x - sx));
+  P().x = 27 * TS; P().y = 13 * TS - P().h; var fx0 = f.x; sim(1.0);
+  ok(f.x < fx0 && f.face === -1, '박쥐는 가까운 플레이어 쪽으로 날아오며 그쪽을 본다', Math.round(fx0) + ' → ' + Math.round(f.x));
+  P().x = 14 * TS; sim(5); ok(Math.abs(f.x - f.bx) > 4 * TS, '박쥐는 제자리에서 멀리 따라온다 (2026-11-24 4 → 12칸, 내리꽂을 때는 그 너머까지)', Math.round(f.x - f.bx));
+  start(flat(function (m) { m.ent('g', 40, 13); }), 0); var s2 = G().enemies[0], sx2 = s2.x; P().inv = 99; P().x = 24 * TS; P().y = 13 * TS - P().h; sim(1.5);
+  ok(s2.aware && s2.face === -1 && s2.x < sx2 - 30, '16칸 떨어진 플레이어도 알아채고 다가온다 (예전 6칸, 3배로)', Math.round(sx2 - s2.x));
+});
+
+// ---------- 표지판 안내 (2026-11-24 사용자 "표지판을 만들어서 설명을 볼 수 있게") ----------
+group = '[표지판]';
+run(function () {
+  start(0); var hs = G().lv.hints, all = hs.length;
+  ok(all === 5, '1-1 에 표지판 5개', all);
+  P().x = hs[1].c * TS + 100; P().y = 13 * TS - P().h; sim(0.1); ok(g3.activeHint && !g3.activeHint(), '표지판에서 2칸 넘게 떨어지면 말풍선이 닫혀 있다');
+  P().x = hs[1].c * TS; sim(0.1); var h = g3.activeHint(); ok(h === hs[1] && h.read, '가까이 가면 그 표지판의 말풍선이 열리고 읽은 것으로 남는다');
+  ok(G().lv.hints.concat(g3.LEVELS.slice(1).reduce(function (a, d) { return a.concat(g3.parseLevel(d).hints); }, [])).every(function (x) { return x.text.split(/\n|\|\|/).length <= 4; }), '모든 표지판 글은 네 줄까지 (2026-11-24 사용자 문장)');
+});
+
+// ---------- 판정: 기본 공격 사거리와 보스 판정 둘 (2026-11-24 사용자 "리치 소폭 증가, 히트박스 명확하게") ----------
+group = '[판정]';
+run(function () {   // 2026-11-24 사용자 "클로에가 스킬을 쓸 때 아래에서부터 위까지 전부 판정"
+  start(flat(function (m) { m.ent('g', 20, 13); }), 0); var en = G().enemies[0]; en.x = 40 * TS; P().face = 1;
+  var y0 = P().y; g3.tag(2); sim(0.15); ok(P().y < y0 - 60, '클로에 상승: 높이 솟구친다', Math.round(y0 - P().y));
+  en.x = P().x; en.y = y0 + P().h - en.h; en.t = 0.6; sim(1 / 60);
+  ok(en.hp < 3, '솟구친 뒤에도 출발한 발밑(아래)의 적까지 맞는다', en.hp);
+});
+run(function () {
+  ok(CFG.atkReach === 40, '기본 공격은 앞으로 40 픽셀', CFG.atkReach);
+  start(flat(function (m) { m.ent('g', 20, 13); }), 0); var en = G().enemies[0]; en.vx = 0;
+  P().face = 1; P().x = en.x - P().w - 34; P().y = en.y + en.h - P().h; g3.press('atk'); g3.update(1 / 60); g3.release('atk'); sim(0.1);
+  ok(en.hp < 3, '34 픽셀 떨어진 적도 기본 공격이 맞힌다 (예전 30 이면 빗나감)', en.hp);
+  start(4); var b = G().enemies.filter(function (e) { return e.type === 'B'; })[0]; b.state = 'idle'; b.st = -9; var c = b.x + b.w / 2;
+  P().inv = 0; P().skill = null; P().face = 1; P().x = c - 90 - P().w; P().y = b.y + b.h - P().h; var hp0 = G().hp, bh = b.hp;
+  g3.press('atk'); g3.update(1 / 60); g3.release('atk'); sim(0.1);
+  ok(b.hp < bh, '골렘 그림의 팔(가운데에서 85 픽셀 안)을 치면 맞는다', bh + ' → ' + b.hp);
+  ok(G().hp === hp0, '팔 언저리에 서 있어도 몸통(가운데 80 폭)에 닿지 않으면 다치지 않는다', hp0 + ' → ' + G().hp);
 });
 
 // ---------- 작업 7: 메뉴·별·잠금 ----------
@@ -259,13 +372,13 @@ run(function () {
   g3.resetSave();
   ok(g3.unlocked(0) && !g3.unlocked(1), '처음에는 1-1 만 열려 있다');
   g3.showSelect(0); ok(document.getElementById('st-1').innerHTML.indexOf('🔒') >= 0, '잠긴 스테이지는 목록에 자물쇠');
-  start(0); P().x = G().door.x + 4; P().y = G().door.y + 20; G().test = false; G().hitThisRun = true; sim(0.1);
+  start(0); G().test = false; G().hitThisRun = true; openDoor();
   ok(g3.starsOf('1-1').join() === '1,0,0', '1-1 을 깨면 별이 남는다', g3.starsOf('1-1').join());
   ok(g3.unlocked(1), '1-1 을 깨면 1-2 가 열린다');
-  start(0); G().test = false; G().treasure = true; G().hitThisRun = true; P().x = G().door.x + 4; P().y = G().door.y + 20; sim(0.1);
+  start(0); G().test = false; G().treasure = true; G().hitThisRun = true; openDoor();
   ok(g3.starsOf('1-1').join() === '1,0,1', '다시 해서 얻은 별이 앞 별에 더해진다 (판마다 따로 쌓임)', g3.starsOf('1-1').join());
   g3.reloadSave(); ok(g3.starsOf('1-1').join() === '1,0,1', '창을 닫았다 열어도 별이 남는다 (브라우저 저장)');
-  var before = JSON.stringify(g3.SAVE); start(1, { test: true }); P().x = G().door.x + 4; P().y = G().door.y + 20; sim(0.1);
+  var before = JSON.stringify(g3.SAVE); start(1, { test: true }); openDoor();
   ok(JSON.stringify(g3.SAVE) === before, '?stage 확인용 판은 별을 남기지 않는다');
   g3.resetSave();
 });
@@ -318,15 +431,26 @@ run(function () {
 
 // ---------- 자기 기술·PERFECT +1 (2026-11-24) ----------
 group = '[자기기술]';
+run(function () {   // 2026-11-24 사용자 "오필리아의 이동 스킬은 대미지를 가지면 안돼"
+  start(flat(function (m) { m.ent('g', 8, 13); }), 1); var en = G().enemies[0]; en.x = P().x + 40; en.t = 0.9; P().face = 1; P().inv = 99;
+  g3.tag(1); sim(0.4); ok(en.hp === 3 && !(G().perfect && G().perfect.kind !== 'move'), '오필리아 활주는 적을 지나가도 대미지를 주지 않는다 (PERFECT 기회도 없음)', en.hp);
+});
+run(function () {   // 2026-11-24 사용자: 태그하지 않고 쓰는 자기 기술은 쿨타임
+  start(flat(), 1); P().face = 1; var st = G().stack;
+  ok(g3.tag(1) && G().stack === st - 1, '자기 기술 (오필리아 활주)');
+  sim(0.6); ok(g3.tag(1) === false && G().stack === st - 1, '2초 안에 다시 자기 기술은 안 된다 (스택도 쓰지 않음)');
+  ok(g3.tag(0) && P().char === 0, '그동안에도 다른 캐릭터로 태그는 된다');
+  sim(CFG.selfCD); P().skill = null; P().char = 1; ok(g3.tag(1) === true, '2초가 지나면 다시 자기 기술');
+});
 run(function () {
   // 자기 기술에는 PERFECT 가 없다
   start(flat(function (m) { m.ent('g', 9, 13); m.ent('g', 16, 13); }), 0); P().face = 1;
-  g3.tag(0); var t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; } sim(0.25);
-  var st = G().stack; g3.tag(0);
+  g3.tag(0); var t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; } sim(0.25);
+  var st = G().stack; G().selfCD = [0, 0, 0]; g3.tag(0);
   ok(G().lastTag.self && G().lastTag.perfect === false && G().echoes.length === 0 && G().stack === st - 1, '맞힌 직후 자기 기술을 써도 PERFECT·에코 없이 스택만 쓴다');
   // PERFECT +1 표시
-  start(flat(function (m) { m.ent('g', 9, 13); }), 1); P().face = 1; g3.tag(0); t = 0; while (!G().perfect && t < 40) { g3.update(1 / 60); t++; } g3.tag(1);
-  ok(G().lastTag.perfect && G().stackFlash > 0, 'PERFECT 로 스택을 돌려받으면 HUD 에 +1 반짝임');
+  start(flat(function (m) { m.ent('g', 9, 13); }), 1); P().face = 1; g3.tag(0); t = 0; while (!(G().perfect && G().perfect.kind !== 'move') && t < 40) { g3.update(1 / 60); t++; } g3.tag(1);
+  ok(G().lastTag.perfect && !(G().stackFlash > 0) && !!G().cueHit, 'PERFECT 는 스택 +1 없이 마름모가 꽉 차는 성공 표시'); sim(0.5); ok(!G().cueHit, '성공 표시는 0.35초 뒤 사라진다');
 });
 document.getElementById('out').textContent = lines.join('\n') + '\n합계 ' + pass + ' 통과, ' + fail + ' 실패';
 })();
