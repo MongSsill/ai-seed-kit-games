@@ -20,6 +20,7 @@
   if (sc === 'l4') { g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; sim(0.1); }
   if (sc === 'ult') { g3.startLevel(3, { test: true }); put(84, 13); g3.G.gauge = 100; g3.press('ult'); sim(0.8); }
   if (sc === 'dash') { g3.startLevel(0, { test: true }); put(44, 13); g3.P.char = 1; g3.P.face = 1; g3.tag(0); sim(0.12); }
+  if (sc === 'wind') { g3.startLevel(1, { test: true }); put(5, 13); g3.P.face = 1; g3.tag(2); sim(0.12); }
   if (sc === 'atk') { g3.startLevel(1, { test: true }); put(31, 13); g3.P.face = 1; g3.press('form'); g3.update(1/60); g3.release('form'); g3.tag(1); sim(0.15); }
   if (sc === 'boss') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(2.4); }
   if (sc === 'boss2') { g3.startLevel(4, { test: true }); put(52, 13); g3.P.inv = 9; sim(0.1); sim(3.3); }

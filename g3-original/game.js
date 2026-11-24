@@ -803,22 +803,53 @@ function buildArt() {
   ART.rock = lowres(10, 9, function (x) { rect(x, '#8b7d6b', 1, 2, 8, 7); rect(x, '#8b7d6b', 3, 0, 4, 3); rect(x, '#b5a68e', 3, 1, 2, 2); rect(x, '#5e5446', 1, 7, 8, 2); }, '#2a221a');
 }
 // 보스 그림: 게임 2 의 사용자 그림 골렘 (assets/golem.png, 원래 왼쪽을 봄). 예고·빈틈 색은 같은 그림에 색을 입혀 만든다
-var GOLEM = { img: null, tint: {} };
+// 그림 불러오기를 세어, 다 온 뒤에 시작 버튼이 눌리게 한다 (QA 뒤 사용자 "다 불러온 뒤 시작": 느린 링크에서 도중에 그림이 바뀌지 않게). 10초가 지나면 그냥 시작할 수 있다
+var LOAD = { total: 0, done: 0, t0: Date.now() };
+function newImg() { var im = new Image(), fin = false; LOAD.total++; function f() { if (!fin) { fin = true; LOAD.done++; } } im.addEventListener('load', f); im.addEventListener('error', f); return im; }
+function loadReady() { return LOAD.done >= LOAD.total || Date.now() - LOAD.t0 > 10000; }
+// 2026-11-24 사용자 시안 시트 ④ 의 골렘 둘(서 있기 ref/golem.png, 공격 ref/golem-atk.png)로 바꿈. 시안을 못 불러오면 게임 2 골렘
+var GOLEM = { img: null, tint: {}, atk: null, atkTint: {} };
 (function () {
   if ((TEST && !window.G3_SHOT) || typeof Image === 'undefined') return;
-  var gi = new Image();
-  gi.onload = function () {
-    GOLEM.img = gi;
+  var base = ((document.currentScript && document.currentScript.src) || '').replace(/[^/]*$/, '');
+  function tints(im, out) {
     ['#ffb347', '#ff5a4a', '#7ab8ff', '#ffffff'].forEach(function (col) {
-      var c = document.createElement('canvas'); c.width = gi.width; c.height = gi.height; var x = c.getContext('2d');
-      x.drawImage(gi, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = col; x.globalAlpha = 0.55; x.fillRect(0, 0, c.width, c.height); GOLEM.tint[col] = c;
+      var c = document.createElement('canvas'); c.width = im.width; c.height = im.height; var x = c.getContext('2d');
+      x.drawImage(im, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = col; x.globalAlpha = 0.3; x.fillRect(0, 0, c.width, c.height); out[col] = c;
     });
-  };
-  gi.src = ((document.currentScript && document.currentScript.src) || '').replace(/[^/]*$/, '') + 'assets/golem.png';
+  }
+  var old = newImg(); old.onload = function () { if (!GOLEM.ref) { GOLEM.img = old; GOLEM.tint = {}; tints(old, GOLEM.tint); } }; old.src = base + 'assets/golem.png';
+  var gi = newImg(); gi.onload = function () { GOLEM.ref = true; GOLEM.img = gi; GOLEM.tint = {}; tints(gi, GOLEM.tint); }; gi.src = base + 'assets/ref/golem.png';
+  var ga = newImg(); ga.onload = function () { GOLEM.atk = ga; tints(ga, GOLEM.atkTint); }; ga.src = base + 'assets/ref/golem-atk.png';
 })();
 function drawBackground(th, cam) {
   var k = G.lv.theme, bg = ART.bg[k], p = PAL[k];
   function layer(img, f, y, sc) { var w = img.width * sc, off = -((cam * f) % w); for (var x = off - w; x < W + w; x += w) ctx.drawImage(img, Math.floor(x), y, w, img.height * sc); }
+  if (BGIMG[k]) {   // 사용자 배경 그림 한 장: 화면보다 조금 크게 놓고 스테이지를 가는 만큼 천천히 옆으로 (먼 배경처럼)
+    var im = BGIMG[k], bh = 600, bw = im.width * bh / im.height, span = Math.max(1, G.lv.pxW - W);
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(im, Math.round(-(bw - W) * Math.min(1, cam / span)), H - bh + 20, bw, bh);
+    ctx.fillStyle = 'rgba(225,242,236,0.22)'; ctx.fillRect(0, 0, W, H);   // 옅은 안개 한 겹: 배경을 뒤로 물려 캐릭터·적·발판이 먼저 보이게
+    ctx.imageSmoothingEnabled = false;
+    return;
+  }
+  var strip = REF[REF_BG[k]];
+  if (strip) {   // 시안의 스테이지 배경 띠: 크게 늘려 흐린 먼 배경으로. 띠 위·아래는 맨 끝 줄을 늘려 하늘과 땅을 잇는다. 이음매는 한 장씩 뒤집어 감춘다
+    var sh = 360, sw = strip.width * sh / strip.height, top = k === 'temple' ? 70 : 110, off = -((cam * 0.25) % (sw * 2));
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    for (var bx = off - sw * 2; bx < W + sw; bx += sw) {
+      var flip = Math.round((bx - off) / sw) % 2 !== 0;
+      ctx.save(); ctx.translate(Math.round(bx) + (flip ? sw : 0), 0); if (flip) ctx.scale(-1, 1);
+      ctx.save(); ctx.translate(0, top + 1); ctx.scale(1, -1); ctx.drawImage(strip, 0, 3, strip.width, strip.height - 6, 0, 0, sw + 1, sh); ctx.restore();   // 위: 띠를 거울처럼 뒤집어 이음 (경계가 이어짐)
+      ctx.drawImage(strip, 0, 3, strip.width, strip.height - 6, 0, top, sw + 1, sh);         // 띠 (맨 끝 줄의 테두리는 뺌)
+      ctx.save(); ctx.translate(0, top + sh - 1); ctx.scale(1, -1); ctx.drawImage(strip, 0, 3, strip.width, strip.height - 6, 0, -sh, sw + 1, sh); ctx.restore();   // 아래도 뒤집어 이음
+      ctx.restore();
+    }
+    ctx.fillStyle = k === 'temple' ? 'rgba(10,20,50,0.4)' : 'rgba(215,232,228,0.4)'; ctx.fillRect(0, 0, W, H);   // 뒤로 물리기 (QA: 배경 아치가 문처럼 보임 → 0.22 에서 0.4)
+    ctx.imageSmoothingEnabled = false;
+    if (k === 'temple') drawLamps(cam, 0.45, 1);
+    return;
+  }
   if (k === 'forest') {
     var sky = ctx.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0, '#9fd6e6');
@@ -928,6 +959,27 @@ function drawTiles(cam) {
   for (var r = 0; r < ROWS; r++) for (var c = c0; c <= c1; c++) {
     var t = g[r][c], x = c * TS, y = r * TS, h = (c * 7 + r * 13) % 3;
     if (G.lv.theme === 'forest') h = ((c * 37 ^ r * 53 ^ (c >> 2)) >>> 0) % 3;
+    var RT = REF[G.lv.theme === 'temple' ? 'tile-stone' : 'tile-grass'];
+    if (t === '#' && RT) {   // 시안 타일: 윗면은 풀(사원은 이끼 돌) 줄, 속은 흙(돌) 줄에서 잘라 씀
+      var top2 = r === 0 || g[r - 1][c] !== '#', st = G.lv.theme === 'temple', hv = ((c * 37 ^ r * 53) >>> 0) % 3;
+      var srcX = st ? 4 + hv * 36 : 8 + hv * 42, srcS = st ? 38 : 40;
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(RT, srcX, top2 ? 0 : (st ? 44 : 40), srcS, srcS - (top2 ? 0 : 2), x, y, TS + 0.5, TS + 0.5);
+      if (top2) ctx.drawImage(RT, srcX, 0, srcS, 10, x - 1, y - 5, TS + 2, 9);   // 풀이 칸 위로 조금 넘침
+      ctx.fillStyle = 'rgba(20,14,10,0.75)';
+      if (c > 0 && g[r][c - 1] !== '#') ctx.fillRect(x, y, 3, TS);
+      if (c < G.lv.w - 1 && g[r][c + 1] !== '#') ctx.fillRect(x + TS - 3, y, 3, TS);
+      if (r < ROWS - 1 && g[r + 1][c] !== '#') ctx.fillRect(x, y + TS - 3, TS, 3);
+      var d2 = 0; while (d2 < 6 && r - d2 - 1 >= 0 && g[r - d2 - 1][c] === '#') d2++;
+      if (d2 > 1) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.5, (d2 - 1) * 0.1) + ')'; ctx.fillRect(x, y, TS, TS); }
+      continue;
+    }
+    if (t === '=' && REF['tile-grass-thin']) {
+      var tg = REF['tile-grass-thin'], hv2 = ((c * 37) >>> 0) % 3, lft = g[r][c - 1] !== '=', rgt = g[r][c + 1] !== '=';
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(tg, lft ? 0 : rgt ? tg.width - 26 : 14 + hv2 * 12, 0, 26, tg.height, x, y - 4, TS + 0.5, 22);
+      continue;
+    }
     if (t === '#') {
       var top = r === 0 || g[r - 1][c] !== '#';
       ctx.drawImage(top ? T.tops[h] : T.fills[h], x, y, TS, TS);
@@ -952,6 +1004,28 @@ function drawTiles(cam) {
     } else if (t === '=') {
       if (G.lv.theme === 'forest') ctx.drawImage(T.one, x, y, TS, 14);
       else ctx.drawImage(T.one, x - 1, y - 1, TS + 2, 16);
+    }
+  }
+}
+// 땅 위 장식 (시안의 덤불·버섯·바위·묘목·울타리, 사원 쪽은 기둥·깃발·등불). 부딪히지 않는 그림일 뿐이고, 칸마다 정해진 자리에 놓는다
+// QA 뒤 바위(보스가 굴리는 바위와 같은 그림)와 울타리(벽처럼 보임)는 뺌. 남은 장식은 조금 어둡게 그려 배경 쪽으로 물린다
+var PROPS = { forest: [['bush', 50], ['mushroom', 24], ['sapling', 28]],
+  temple: [['pillars', 74], ['banner', 30], ['lamp', 34]] };
+function drawProps() {
+  if (!REF.bush) return;
+  var g = G.lv.g, cam = G.cam, c0 = Math.max(1, Math.floor(cam / TS) - 3), c1 = Math.min(G.lv.w - 2, Math.floor((cam + W) / TS) + 3);
+  var set = G.lv.theme === 'temple' ? PROPS.temple : G.lv.theme === 'forest4' ? PROPS.forest.concat(PROPS.temple.slice(0, 3)) : PROPS.forest;
+  var dc = G.lv.door ? G.lv.door.c : -99;
+  ctx.imageSmoothingEnabled = true;
+  for (var c = c0; c <= c1; c++) {
+    var hsh = ((c * 2654435761) >>> 0) % 97; if (hsh % 6 !== 0 || Math.abs(c - dc) < 3) continue;
+    for (var r = 2; r < ROWS; r++) {
+      if (g[r][c] !== '#' || g[r - 1][c] === '#' || g[r - 2][c] === '#') continue;
+      if (g[r][c - 1] !== '#' || g[r][c + 1] !== '#') break;   // 가장자리는 비운다 (발 디딜 곳이 잘 보이게)
+      var pr = set[(hsh / 6 | 0) % set.length], im = REF[pr[0]]; if (!im) break;
+      var tall = pr[0] === 'banner' || pr[0] === 'lamp', dw = pr[1], dh = tall ? dw * im.height / im.width : im.height / im.width * dw;
+      ctx.filter = 'brightness(0.72) saturate(0.8)'; ctx.drawImage(im, c * TS + TS / 2 - dw / 2, r * TS - dh + 3, dw, dh); ctx.filter = 'none';
+      break;
     }
   }
 }
@@ -991,7 +1065,13 @@ function draw() {
   // 칸
   drawTiles(cam);
   // 문
-  if (G.door) { var d = G.door; ctx.fillStyle = 'rgba(255,230,140,' + (0.25 + Math.sin(G.time * 3) * 0.1) + ')'; ctx.beginPath(); ctx.ellipse(d.x + d.w / 2, d.y + d.h / 2, 34, 44, 0, 0, 7); ctx.fill(); ctx.drawImage(ART.door, d.x - 4, d.y - 4, 40, 68); }
+  drawProps();
+  if (G.door && REF.arch) {   // 문: 시안의 돌 아치, 안쪽이 빛난다
+    var dr = G.door, ah = 96, aw = REF.arch.width / REF.arch.height * ah, pul = 0.35 + Math.sin(G.time * 3) * 0.12;
+    var dg2 = ctx.createRadialGradient(dr.x + dr.w / 2, dr.y + dr.h - 26, 4, dr.x + dr.w / 2, dr.y + dr.h - 26, 46); dg2.addColorStop(0, 'rgba(255,240,170,' + (pul + 0.3) + ')'); dg2.addColorStop(1, 'rgba(255,220,120,0)');
+    ctx.fillStyle = dg2; ctx.fillRect(dr.x - 40, dr.y - 30, dr.w + 80, dr.h + 40);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(REF.arch, dr.x + dr.w / 2 - aw / 2, dr.y + dr.h - ah + 4, aw, ah);
+  } else if (G.door) { var d = G.door; ctx.fillStyle = 'rgba(255,230,140,' + (0.25 + Math.sin(G.time * 3) * 0.1) + ')'; ctx.beginPath(); ctx.ellipse(d.x + d.w / 2, d.y + d.h / 2, 34, 44, 0, 0, 7); ctx.fill(); ctx.drawImage(ART.door, d.x - 4, d.y - 4, 40, 68); }
   // 얼음 길: 테두리 있는 얼음 결정
   if (G.ice) G.ice.segs.forEach(function (s) {
     var warn = G.ice.done && G.ice.life < CFG.iceWarn;
@@ -1007,6 +1087,12 @@ function draw() {
   // 물건
   G.items.forEach(function (it) {
     var bob = Math.sin(it.t * 4) * 3;
+    if (it.type === 'T' && REF.crystal) {   // 숨겨진 보물: 시안의 빛나는 수정
+      ctx.fillStyle = 'rgba(150,220,255,' + (0.3 + Math.sin(it.t * 5) * 0.15) + ')'; ctx.beginPath(); ctx.arc(it.x + 10, it.y + 8 + bob, 22, 0, 7); ctx.fill();
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(REF.crystal, it.x - 8, it.y - 16 + bob, 36, 36);
+      if (Math.floor(it.t * 3) % 3 === 0) { ctx.fillStyle = '#fff'; ctx.fillRect(it.x + 20, it.y - 12 + bob, 3, 3); }
+      return;
+    }
     if (it.type === 'T' && G.lv.theme === 'forest') {
       ctx.drawImage(ART.woodlandChest, it.x - 3, Math.round(it.y - 3 + bob), 32, 26);
       return;
@@ -1016,19 +1102,24 @@ function draw() {
   });
   // 적
   G.enemies.forEach(function (en) { if (en.type === 'B') drawBoss(en); else drawEnemy(en); });
-  G.waves.forEach(function (w) { ctx.imageSmoothingEnabled = false; ctx.drawImage(ART.rock, w.x, w.y + 2, 24, 22); ctx.fillStyle = 'rgba(200,180,150,0.6)'; ctx.fillRect(w.x - (w.vx > 0 ? 14 : -24), w.y + 16, 14, 6); });
+  G.waves.forEach(function (w) { ctx.imageSmoothingEnabled = !!REF.rock; ctx.drawImage(REF.rock || ART.rock, w.x - 2, w.y, 28, 24); ctx.fillStyle = 'rgba(200,180,150,0.6)'; ctx.fillRect(w.x - (w.vx > 0 ? 14 : -24), w.y + 16, 14, 6); });
   // 에코
-  G.echoes.forEach(function (e) { var a = 0.45 * (1 - e.t / e.dur) + 0.15; ctx.globalAlpha = a; drawChar(e.ci, e.x, e.y, e.face, e.type === 'strike' ? 'strike' : e.type); if (isAtkType(e.type)) drawAtkFx(e, e.type, Math.min(1, e.t / e.dur), e.face); ctx.globalAlpha = 1; });
+  G.echoes.forEach(function (e) { var a = 0.45 * (1 - e.t / e.dur) + 0.15; ctx.globalAlpha = a; drawChar(e.ci, e.x, e.y, e.face, e.type === 'strike' ? 'strike' : e.type, Math.min(1, e.t / e.dur)); if (isAtkType(e.type)) drawAtkFx(e, e.type, Math.min(1, e.t / e.dur), e.face); ctx.globalAlpha = 1; });
   // 플레이어 (발밑 빛: 이동폼 하늘색, 공격폼 주황)
   if (G.dying <= 0) { var fg = ctx.createRadialGradient(P.x + P.w / 2, P.y + P.h, 2, P.x + P.w / 2, P.y + P.h, 26); fg.addColorStop(0, G.form === 'atk' ? 'rgba(255,140,60,0.75)' : 'rgba(140,220,255,0.6)'); fg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = fg; ctx.fillRect(P.x + P.w / 2 - 28, P.y + P.h - 10, 56, 16); }
-  if (!(P.inv > 0 && Math.floor(G.time * 20) % 2) && G.dying <= 0) drawChar(P.char, P.x, P.y, P.face, P.skill ? P.skill.type : (P.atk > 0 ? 'atk' : (P.onGround ? (Math.abs(P.vx) > 10 ? 'run' : 'idle') : 'air')));
+  if (!(P.inv > 0 && Math.floor(G.time * 20) % 2) && G.dying <= 0) drawChar(P.char, P.x, P.y, P.face, P.skill ? P.skill.type : (P.atk > 0 ? 'atk' : (P.onGround ? (Math.abs(P.vx) > 10 ? 'run' : 'idle') : 'air')), P.skill ? Math.min(1, P.skill.t / P.skill.dur) : (P.atk > 0 ? 1 - P.atk / CFG.atkT : 0));
   if (P.skill && isAtkType(P.skill.type)) drawAtkFx(P, P.skill.type, Math.min(1, P.skill.t / P.skill.dur), P.face);
   if (G.ult) drawUlt();
   // 조각과 글자
   ctx.globalCompositeOperation = 'lighter';   // 조각은 빛나게
   G.parts.forEach(function (p) { ctx.globalAlpha = 1 - p.t / p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.size, p.size); }); ctx.globalAlpha = 1;
   ctx.globalCompositeOperation = 'source-over';
-  G.pops.forEach(function (p) { ctx.globalAlpha = 1 - p.t / (p.big ? 1 : 0.6); ctx.font = (p.big ? 'bold 26px ' : 'bold 16px ') + 'sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(p.text, p.x + 2, p.y + 2); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y); }); ctx.globalAlpha = 1;
+  G.pops.forEach(function (p) { ctx.globalAlpha = 1 - p.t / (p.big ? 1 : 0.6);
+    if (p.text === 'PERFECT' && REF['fx-perfect']) {   // 시안의 PERFECT 글자: 튀어나왔다가 자리 잡음
+      var pi = REF['fx-perfect'], ps = p.t < 0.12 ? 0.6 + p.t / 0.12 * 0.6 : 1.2 - Math.min(0.2, (p.t - 0.12)), pw = 150 * ps, ph = pi.height / pi.width * pw;
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(pi, p.x - pw / 2, p.y - ph, pw, ph);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.4; ctx.drawImage(pi, p.x - pw / 2, p.y - ph, pw, ph); ctx.globalCompositeOperation = 'source-over'; return;
+    } ctx.font = (p.big ? 'bold 26px ' : 'bold 16px ') + 'sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#000'; ctx.fillText(p.text, p.x + 2, p.y + 2); ctx.fillStyle = p.color; ctx.fillText(p.text, p.x, p.y); }); ctx.globalAlpha = 1;
   ctx.restore();
   drawForeground(cam);
   drawLighting(cam);
@@ -1042,14 +1133,64 @@ function drawHills(off, base, amp, color, wl) { ctx.fillStyle = color; ctx.begin
 // 2026-11-24 사용자가 "C 게임 2 원본"을 고름. 그림이 원래 보는 쪽과 발 가운데 자리는 게임 2 의 값을 따른다
 // (보는 쪽은 게임 2 의 CHAR_FACE [1,1,1]. 빨강은 사용자가 확인한 값이 아니라 지적이 없었던 값, 장부 78)
 var BASE = (function () { var s = document.currentScript && document.currentScript.src; return s ? s.replace(/[^/]*$/, '') : './'; })();   // game.js 가 있는 폴더 (검사 페이지에서도 그림을 찾도록)
+var BGIMG = {};   // 스테이지 배경 그림 (사용자 그림). 없으면 코드로 그린 배경
+// 사용자 시안 시트 ④ (g3-ref "정교한 픽셀 아트 게임 에셋 시트-4", ChatGPT 로 만들고 후가공)에서 잘라 낸 그림 (assets/ref/). 못 불러오면 코드로 그린 그림
+var REF = {};
+// 캐릭터 시안 (g3-ref "판타지 액션 플랫폼er 픽셀 아트 시트", ChatGPT 로 만들고 후가공): 캐릭터마다 대기 2·달리기 6·공격 3·기술 3 장 (모두 오른쪽을 봄), 얼굴 칸 1장 (assets/char/)
+// 14장을 다 불러오기 전에는 게임 2 그림(char-*.png)으로 그린다
+var CH2 = { names: ['idle0', 'idle1', 'run0', 'run1', 'run2', 'run3', 'run4', 'run5', 'atk0', 'atk1', 'atk2', 'sp0', 'sp1', 'sp2'], fr: [{}, {}, {}], face: [], count: 0 };
+var REF_FILES = ['slime0', 'slime1', 'slime2', 'bat0', 'bat1', 'bat2', 'golem', 'golem-atk', 'tile-grass', 'tile-stone', 'tile-grass-thin',
+  'bg-1-2', 'bg-1-3', 'bg-1-4', 'bg-1-5', 'fx-dragon', 'fx-ice', 'fx-wind', 'fx-perfect', 'fx-ult',
+  'arch', 'crystal', 'bush', 'mushroom', 'rock', 'sapling', 'lamp', 'pillars', 'banner'];
+var REF_BG = { forest2: 'bg-1-2', forest3: 'bg-1-3', forest4: 'bg-1-4', temple: 'bg-1-5' };   // 스테이지 배경 띠
 var SPR = { files: ['char-red', 'char-blue', 'char-green'], face: [1, 1, 1], foot: [0.58, 0.55, 0.6], faceAt: [[0.58, 0.31], [0.52, 0.34], [0.67, 0.23]], h: 64, img: [], dragon: null };
 (function () {
   if ((TEST && !window.G3_SHOT) || typeof Image === 'undefined') return;
-  SPR.files.forEach(function (n, i) { var im = new Image(); im.onload = function () { SPR.img[i] = im; }; im.src = BASE + 'assets/' + n + '.png'; });
-  var dg = new Image(); dg.onload = function () { SPR.dragon = dg; }; dg.src = BASE + 'assets/dragon.png';
+  SPR.files.forEach(function (n, i) { var im = newImg(); im.onload = function () { SPR.img[i] = im; }; im.src = BASE + 'assets/' + n + '.png'; });
+  var dg = newImg(); dg.onload = function () { SPR.dragon = dg; }; dg.src = BASE + 'assets/dragon.png';
+  var b11 = newImg(); b11.onload = function () { BGIMG['forest'] = b11; }; b11.src = BASE + 'assets/bg-1-1.png';   // 1-1 배경: 사용자 그림 (g3-ref, ChatGPT 로 만들고 후가공)
+  ['red', 'blue', 'wind'].forEach(function (k, ci) {
+    var fi = newImg(); fi.onload = function () { CH2.face[ci] = fi; }; fi.src = BASE + 'assets/char/' + k + '-face.png';
+    CH2.names.forEach(function (n) { var im = newImg(); im.onload = function () { CH2.fr[ci][n] = im; CH2.count++; }; im.src = BASE + 'assets/char/' + k + '-' + n + '.png'; });
+  });
+  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png'; });
 })();
-function drawSprite(ci, x, y, face, pose) {
+// 캐릭터 시안의 동작 그림으로 그리기. k 는 기술·공격의 진행 (0 → 1). 그림은 모두 오른쪽을 보고, 발이 그림 맨 아래에 있다
+var CH2_AX = { 'red-sp1': 0.68, 'red-sp2': 0.45 };   // 불꽃·이펙트가 옆으로 뻗은 그림은 몸 자리를 따로 (그림 폭에 대한 비율)
+function drawFrame(ci, x, y, face, pose, k) {
+  var F = CH2.fr[ci], t = G.time || 0, key = ['red', 'blue', 'wind'][ci], n;
+  if (pose === 'idle') n = 'idle' + (Math.floor(t * 2.5) % 2);
+  else if (pose === 'run') n = 'run' + (Math.floor(t * 12) % 6);
+  else if (pose === 'air') n = 'run2';
+  else if (pose === 'atk' || pose === 'strike' || isAtkType(pose)) n = 'atk' + Math.min(2, Math.floor(k * 3));
+  else if (pose === 'dash') n = k < 0.08 ? 'sp0' : (k < 0.8 ? 'sp1' : 'sp2');   // QA 뒤: 몸이 잘 보이는 둘째 장 위주, 불덩이가 큰 셋째 장은 끝에만
+  else if (pose === 'slide' || pose === 'up') n = 'sp1';
+  else if (pose === 'wind') n = 'sp0';
+  else n = 'idle0';
+  var im = F[n] || F.idle0, w = im.width, h = im.height, ax = CH2_AX[key + '-' + n] !== undefined ? w * CH2_AX[key + '-' + n] : Math.min(w, 54) / 2;
+  ctx.save(); ctx.translate(Math.round(x + CFG.pw / 2), Math.round(y + CFG.ph + 2)); if (face < 0) ctx.scale(-1, 1);
+  ctx.imageSmoothingEnabled = false;
+  if (pose === 'dash' && REF['fx-dragon']) {   // 용 돌진: 캐릭터 뒤로 불꽃 용의 기운
+    var fd = REF['fx-dragon'], fh = 70, fw = fd.width / fd.height * fh;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.25; ctx.imageSmoothingEnabled = true; ctx.drawImage(fd, -fw * 0.7, -h / 2 - fh / 2, fw, fh); ctx.restore();
+  }
+  if (pose === 'wind') {   // 상승 기류: 시안의 회오리 두 장을 번갈아 발밑에
+    var tw = F['sp' + (1 + Math.floor(t * 10) % 2)]; if (tw) { ctx.save(); ctx.globalAlpha *= 0.9; ctx.drawImage(tw, -tw.width * 0.55, -18, tw.width * 1.1, tw.height * 1.1); ctx.restore(); }
+  }
+  if (pose === 'slide') ctx.rotate(0.12);
+  ctx.drawImage(im, -Math.round(ax), -h, w, h);
+  ctx.restore();
+}
+function drawSprite(ci, x, y, face, pose, k) {
+  CH2.on = false;
+  if (CH2.count >= 42) { CH2.on = true; drawFrame(ci, x, y, face, pose, k || 0); return true; }
   var im = SPR.img[ci];
+  if (pose === 'dash' && REF['fx-dragon']) {   // 빨강 용 돌진: 시안의 불꽃 용 (원래 오른쪽을 봄), 빛나게 겹쳐 그림
+    var fd = REF['fx-dragon'], fh = 66, fw = fd.width / fd.height * fh, fl = 1 + Math.sin((G.time || 0) * 40) * 0.04;
+    ctx.save(); ctx.translate(x + CFG.pw / 2, y + CFG.ph / 2 - 2); if (face < 0) ctx.scale(-1, 1); ctx.scale(fl, 1 / fl);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(fd, -fw * 0.62, -fh / 2, fw, fh);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.35; ctx.drawImage(fd, -fw * 0.62, -fh / 2, fw, fh); ctx.restore(); return true;
+  }
   if (pose === 'dash' && SPR.dragon) {       // 빨강 용 돌진: 용가리 그림 (원래 오른쪽을 봄)
     var dh = 54, dw = SPR.dragon.width / SPR.dragon.height * dh;
     ctx.save(); ctx.translate(x + CFG.pw / 2, y + CFG.ph / 2 - 4); if (face < 0) ctx.scale(-1, 1);
@@ -1089,12 +1230,17 @@ function drawSprite(ci, x, y, face, pose) {
   ctx.restore();
   return true;
 }
-function drawChar(ci, x, y, face, pose) {
+function drawChar(ci, x, y, face, pose, k) {
   var ch = CHARS[ci];
   x = Math.round(x); y = Math.round(y);
-  if (drawSprite(ci, x, y, face, pose)) {
+  if (drawSprite(ci, x, y, face, pose, k)) {
+    if (CH2.on) return;   // 캐릭터 시안 그림에는 공격·기술 몸짓과 이펙트가 들어 있다
     if (pose === 'atk' || pose === 'strike') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fillRect(x + (face > 0 ? 26 : -32), y + 8, 30, 4); ctx.fillRect(x + (face > 0 ? 26 : -26), y + 18, 22, 3); }
-    if (pose === 'wind') { ctx.strokeStyle = 'rgba(230,255,240,0.85)'; ctx.lineWidth = 2; for (var k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(x + 12, y + 30 + k * 8, 20 - k * 4, 6, 0, 0, 7); ctx.stroke(); } ctx.lineWidth = 1; }
+    if (pose === 'wind' && REF['fx-wind']) {   // 바람 상승: 시안의 회오리를 발밑에 겹겹이, 돌며 빛나게
+      var fwi = REF['fx-wind'], ww = 86, wh = fwi.height / fwi.width * ww; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.imageSmoothingEnabled = true;
+      for (var q = 0; q < 2; q++) { ctx.save(); ctx.translate(x + 12, y + 34 + q * 14); ctx.scale((q % 2 ? -1 : 1) * (1 - q * 0.25), 0.7); ctx.rotate(Math.sin((G.time || 0) * 9 + q) * 0.15); ctx.globalAlpha = 0.85; ctx.drawImage(fwi, -ww / 2, -wh / 2, ww, wh); ctx.restore(); }
+      ctx.restore();
+    } else if (pose === 'wind') { ctx.strokeStyle = 'rgba(230,255,240,0.85)'; ctx.lineWidth = 2; for (var k = 0; k < 3; k++) { ctx.beginPath(); ctx.ellipse(x + 12, y + 30 + k * 8, 20 - k * 4, 6, 0, 0, 7); ctx.stroke(); } ctx.lineWidth = 1; }
     if (pose === 'slide') { ctx.fillStyle = 'rgba(210,240,255,0.7)'; ctx.fillRect(x - face * 20, y + CFG.ph - 6, 20, 4); }
     return;
   }
@@ -1128,7 +1274,14 @@ function drawEnemy(en) {
   var hitFlash = en.stun > 0.3, frozen = en.stun > 0.5;
   ctx.imageSmoothingEnabled = false;
   ctx.save();
-  if (en.type === 'g') {   // 슬라임: 두 장을 번갈아 (통통 튀며 걷는다), 보는 쪽으로 뒤집는다
+  if (REF.slime0 && en.type === 'g') {   // 시안 슬라임 세 장 (통통 → 납작 → 통통)
+    var sfr = REF['slime' + [0, 1, 0, 2][Math.floor(en.t * 6) % 4]], sh = 30, sw = sfr.width / sfr.height * sh;
+    ctx.translate(x + en.w / 2, y + en.h + 2); if (en.vx > 0) ctx.scale(-1, 1); ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(sfr, -sw / 2, -sh, sw, sh);
+  } else if (REF.bat0 && en.type !== 'g') {   // 시안 박쥐 세 장 (날갯짓)
+    var bfr = REF['bat' + [0, 1, 2, 1][Math.floor(en.t * 10) % 4]], bh = 36, bw = bfr.width / bfr.height * bh;
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(bfr, x + en.w / 2 - bw / 2, y + en.h / 2 - bh / 2, bw, bh);
+  } else if (en.type === 'g') {   // 슬라임: 두 장을 번갈아 (통통 튀며 걷는다), 보는 쪽으로 뒤집는다
     var fr = Math.floor(en.t * 5) % 2, sp = ART.slime[fr];
     ctx.translate(x + en.w / 2, y + en.h); if (en.vx > 0) ctx.scale(-1, 1);
     ctx.drawImage(sp, -17, -26, 34, 28);
@@ -1137,7 +1290,7 @@ function drawEnemy(en) {
     ctx.drawImage(ART.bat[bf], x - 8, y - 4, 42, 26);
   }
   ctx.restore();
-  if (hitFlash || frozen) { ctx.globalAlpha *= frozen ? 0.45 : 0.6; ctx.fillStyle = frozen ? '#bfeaff' : '#ffffff'; ctx.fillRect(x - 2, y - 2, en.w + 4, en.h + 4); }
+  if (hitFlash || frozen) { ctx.globalAlpha *= frozen ? 0.45 : 0.6; ctx.fillStyle = frozen ? '#bfeaff' : '#ffffff'; ctx.beginPath(); ctx.ellipse(x + en.w / 2, y + en.h / 2, en.w / 2 + 6, en.h / 2 + 4, 0, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
 }
 function drawBoss(b) {
@@ -1146,11 +1299,17 @@ function drawBoss(b) {
   var tele = b.state === 'tele' && Math.floor(b.st * 12) % 2;
   var col = tele ? (b.pattern === 'wave' ? '#ffb347' : '#ff6a5a') : (bossVulnerable(b) ? '#7ab8ff' : '#8b8478');
   if (GOLEM.img) {   // 골렘 그림 (원래 왼쪽을 봄). 판정 상자보다 크게, 발을 맞춰 그린다
-    var gh = 150, gw = GOLEM.img.width / GOLEM.img.height * gh, kneel = b.state === 'kneel' ? 0.85 : 1;
-    var src = tele ? GOLEM.tint[b.pattern === 'wave' ? '#ffb347' : '#ff5a4a'] : (bossVulnerable(b) ? GOLEM.tint['#7ab8ff'] : (b.state === 'charge' ? GOLEM.tint['#ff5a4a'] : GOLEM.img));
+    var atkPose = GOLEM.atk && (b.state === 'tele' || b.state === 'wave' || b.state === 'charge'), base = atkPose ? GOLEM.atk : GOLEM.img, tn = atkPose ? GOLEM.atkTint : GOLEM.tint;
+    var gh = GOLEM.ref ? (atkPose ? 150 : 170) : 150, gw = base.width / base.height * gh, kneel = b.state === 'kneel' ? 0.85 : 1;
+    var src = tele ? tn[b.pattern === 'wave' ? '#ffb347' : '#ff5a4a'] : (bossVulnerable(b) ? tn['#7ab8ff'] : (b.state === 'charge' ? tn['#ff5a4a'] : base));
+    // QA 뒤 (사용자 "색 대신 빛나는 테두리"): 예고·돌진 중에는 몸에 색을 입히지 않고, 골렘 윤곽을 따라 주황(충격파)·빨강(돌진) 빛이 크게 번진다. 예고 중에는 깜빡임에 맞춰 세졌다 약해진다
+    var warnCol = GOLEM.ref && (b.state === 'tele' ? (b.pattern === 'wave' ? '#ffa030' : '#ff3a2a') : (b.state === 'charge' ? '#ff3a2a' : null));
+    if (warnCol) src = base;
     if (bossVulnerable(b)) { ctx.fillStyle = 'rgba(122,208,255,' + (0.25 + Math.sin(G.time * 8) * 0.1) + ')'; ctx.beginPath(); ctx.ellipse(x + b.w / 2, y + b.h - 4, 70, 14, 0, 0, 7); ctx.fill(); }
     ctx.save(); ctx.translate(x + b.w / 2, y + b.h); if (b.face > 0) ctx.scale(-1, 1); ctx.scale(1, kneel);
-    ctx.imageSmoothingEnabled = true; ctx.drawImage(src || GOLEM.img, -gw / 2, -gh, gw, gh); ctx.restore();
+    ctx.imageSmoothingEnabled = true;
+    if (warnCol) { ctx.save(); ctx.shadowColor = warnCol; ctx.shadowBlur = tele || b.state === 'charge' ? 36 : 18; for (var gl = 0; gl < 3; gl++) ctx.drawImage(base, -gw / 2, -gh + 6, gw, gh); ctx.restore(); }
+    ctx.drawImage(src || base, -gw / 2, -gh + (GOLEM.ref ? 6 : 0), gw, gh); ctx.restore();
     ctx.globalAlpha = 1;
   } else {
     if (b.state === 'kneel') y += 20;
@@ -1168,6 +1327,27 @@ function drawBoss(b) {
 function drawAtkFx(o, type, k, face) {
   var box = skillHitbox(o, type, face), cx = o.x + o.w / 2, fy = o.y + o.h;
   ctx.save();
+  var fxImg = REF[{ claw: 'fx-dragon', spikes: 'fx-ice', upper: 'fx-wind' }[type]];
+  if (fxImg) {   // 시안 이펙트 (불꽃 용·얼음 가시·회오리)를 판정 상자에 맞춰 그림
+    ctx.imageSmoothingEnabled = true;
+    var fade = k > 0.75 ? (1 - k) / 0.25 : 1; ctx.globalAlpha *= fade;
+    if (type === 'claw') {          // 화염 할퀴기: 불꽃 용이 앞으로 튀어나가며 물어뜯음
+      var ch = Math.max(48, box.h), cw = fxImg.width / fxImg.height * ch, push = Math.min(1, k * 3);
+      ctx.translate(face > 0 ? box.x - 10 + push * 10 : box.x + box.w + 10 - push * 10, box.y + box.h / 2); if (face < 0) ctx.scale(-1, 1);
+      ctx.scale(0.6 + push * 0.4, 0.6 + push * 0.4); ctx.drawImage(fxImg, -cw * 0.15, -ch / 2, cw, ch);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.4; ctx.drawImage(fxImg, -cw * 0.15, -ch / 2, cw, ch);
+    } else if (type === 'spikes') { // 얼음 가시: 앞 땅에서 솟는다 (아래에서 자라 오름)
+      var grow = Math.min(1, k * 2.5), iw = Math.max(box.w, 90), ih = fxImg.height / fxImg.width * iw * 1.25, ix = face > 0 ? o.x + o.w : o.x - iw;
+      ctx.beginPath(); ctx.rect(ix - 4, fy - ih * grow, iw + 8, ih * grow + 2); ctx.clip();
+      ctx.translate(ix + iw / 2, fy); if (face < 0) ctx.scale(-1, 1); ctx.drawImage(fxImg, -iw / 2, -ih, iw, ih);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.3; ctx.drawImage(fxImg, -iw / 2, -ih, iw, ih);
+    } else {                        // 회오리 어퍼컷: 회오리 셋이 감아 올라감
+      var uw = 80, uh = fxImg.height / fxImg.width * uw; ctx.globalCompositeOperation = 'lighter';
+      for (var u = 0; u < 3; u++) { ctx.save(); ctx.translate(cx, fy - 10 - u * 22 - k * 30); ctx.scale(u % 2 ? -1 : 1, 0.75); ctx.rotate(k * 4 + u); ctx.drawImage(fxImg, -uw / 2, -uh / 2, uw, uh); ctx.restore(); }
+    }
+    ctx.restore();
+    return;
+  }
   if (type === 'claw') {          // 화염 할퀴기: 앞으로 긁는 불꽃 세 줄
     ctx.lineCap = 'round';
     for (var i = 0; i < 3; i++) {
@@ -1198,10 +1378,22 @@ function drawAtkFx(o, type, k, face) {
 function drawUlt() {
   var t = G.ult.t, cx = P.x + P.w / 2, cy = P.y + P.h / 2;
   ctx.fillStyle = 'rgba(10,10,30,0.35)'; ctx.fillRect(G.cam - 20, 0, W + 40, H);
-  if (t < 0.35) { ctx.fillStyle = CHARS[0].color; ctx.fillRect(cx - 200 + t * 1200, cy - 10, 160, 20); }
+  var ud = REF['fx-dragon'], ui2 = REF['fx-ice'], uw2 = REF['fx-wind'];
+  ctx.save(); ctx.imageSmoothingEnabled = true;
+  if (ud && t < 0.35) { ctx.drawImage(ud, cx - 260 + t * 1200, cy - 40, 160, 160 * ud.height / ud.width); ctx.restore(); }
+  else if (ui2 && t >= 0.35 && t < 0.7) { for (var s = 0; s < 4; s++) { var sx2 = cx - 300 + s * 150; if (sx2 < cx - 300 + (t - 0.35) * 1800) ctx.drawImage(ui2, sx2, cy - 40, 150, 150 * ui2.height / ui2.width); } ctx.restore(); }
+  else if (uw2 && t >= 0.7 && t < 1.05) { ctx.globalCompositeOperation = 'lighter'; for (var s2 = 0; s2 < 4; s2++) ctx.drawImage(uw2, cx - 60, cy + 20 - s2 * 60 - (t - 0.7) * 300, 120, 120 * uw2.height / uw2.width); ctx.restore(); }
+  else ctx.restore();
+  if (ud && ui2 && uw2 && t < 1.05) { /* 시안 그림으로 그림 */ }
+  else if (t < 0.35) { ctx.fillStyle = CHARS[0].color; ctx.fillRect(cx - 200 + t * 1200, cy - 10, 160, 20); }
   else if (t < 0.7) { ctx.fillStyle = '#d4f3ff'; ctx.fillRect(cx - 300, cy + 14, (t - 0.35) * 1800, 8); }
   else if (t < 1.05) { ctx.fillStyle = 'rgba(120,255,190,0.7)'; ctx.fillRect(cx - 30, cy - (t - 0.7) * 900, 60, (t - 0.7) * 900); }
   else { ctx.fillStyle = 'rgba(255,240,180,' + (1.4 - t) * 2 + ')'; ctx.beginPath(); ctx.arc(cx, cy, (t - 1.05) * 1200, 0, 7); ctx.fill(); }
+  if (REF['fx-ult'] && t >= 0.7) {   // 시안의 합동 필살기: 불꽃 용·얼음·바람이 한데 모여 터짐
+    var ui = REF['fx-ult'], us = 0.8 + Math.min(1, (t - 0.7) / 0.35) * 0.9, uw = 300 * us, uh = ui.height / ui.width * uw;
+    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = Math.max(0, Math.min(1, (1.4 - t) * 2.5)); ctx.drawImage(ui, cx - uw / 2, cy - uh / 2 - 10, uw, uh);
+    ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha *= 0.5; ctx.drawImage(ui, cx - uw / 2, cy - uh / 2 - 10, uw, uh); ctx.restore();
+  }
   ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.fillText('합동 필살기', cx, 150);
 }
 function boss() { return G.enemies && G.enemies.filter(function (e) { return e.type === 'B'; })[0]; }
@@ -1236,8 +1428,10 @@ function drawHUD() {
     var x = 16 + c * 66, y = H - 74, has = G.lv.chars.indexOf(c) >= 0, cur = P.char === c;
     ctx.fillStyle = cur ? 'rgba(255,210,74,0.95)' : 'rgba(15,20,32,0.8)'; ctx.fillRect(x - 3, y - 3, 62, 62);
     ctx.fillStyle = has ? CHARS[c].color : '#3a3f55'; ctx.fillRect(x, y, 56, 56);
-    var fim = SPR.img[c];
-    if (fim) {   // 얼굴 칸: 그림 윗부분(머리)을 잘라 넣는다
+    var fim = SPR.img[c], fface = CH2.face[c];
+    if (fface) {   // 얼굴 칸: 캐릭터 시안의 큰 그림에서 잘라 둔 얼굴 (assets/char/*-face.png)
+      ctx.save(); ctx.globalAlpha = has ? 1 : 0.35; ctx.imageSmoothingEnabled = true; ctx.drawImage(fface, x, y, 56, 56); ctx.restore();
+    } else if (fim) {   // 얼굴 칸: 그림 윗부분(머리)을 잘라 넣는다
       ctx.save(); ctx.beginPath(); ctx.rect(x, y, 56, 56); ctx.clip(); ctx.globalAlpha = has ? 1 : 0.35;
       var fc = SPR.faceAt[c], sw = fim.height * 0.4, sh = sw, sx0 = fim.width * fc[0] - sw / 2, sy0 = fim.height * fc[1] - sh / 2;   // 그림마다 얼굴 자리가 달라 따로 잰 값 (장부 85)
       ctx.imageSmoothingEnabled = true; ctx.drawImage(fim, sx0, sy0, sw, sh, x, y, 56, 56); ctx.restore();
@@ -1333,7 +1527,8 @@ function pauseGame() { if (G.mode !== 'play' || G.dying > 0) return; G.mode = 'p
 function resumeGame() { menus.pause.close(); G.mode = 'play'; keys = {}; }
 
 if (document.getElementById('title')) {
-  menus.title = makeMenu($('title'), [$('title-start')], function () { showSelect(0); }, null);
+  menus.title = makeMenu($('title'), [$('title-start')], function () { if (loadReady()) showSelect(0); }, null);
+  var loadLabel = function () { var b = $('title-start'); if (b) b.textContent = loadReady() ? '시작' : '불러오는 중 ' + LOAD.done + ' / ' + LOAD.total; }; loadLabel(); setInterval(loadLabel, 150);   // 그림이 다 오기 전에는 시작 버튼 대신 불러온 수
   menus.select = makeMenu($('select'), [0, 1, 2, 3, 4].map(function (i) { return $('st-' + i); }), function (i) { if (unlocked(i)) startLevel(i); }, function () { showTitle(); });
   menus.pause = makeMenu($('pause'), [$('pause-resume'), $('pause-restart'), $('pause-list')], function (i) {
     if (i === 0) resumeGame(); else if (i === 1) { menus.pause.close(); restartStage(); } else { showSelect(Math.max(0, G.levelIndex)); }
@@ -1374,7 +1569,7 @@ window.G3 = {
   CFG: CFG, LEVELS: LEVELS, CHARS: CHARS, Builder: Builder, parseLevel: parseLevel, TS: TS, ROWS: ROWS,
   get G() { return G; }, get P() { return P; }, get SAVE() { return SAVE; },
   startLevel: function (w, o) { if (typeof w !== 'number') G.lvDef = w; return startLevel(w, o); },
-  update: update, tag: tag, press: press, release: release, keys: function () { return keys; }, KEYMAP: KEYMAP,
+  update: update, tag: tag, press: press, release: release, keys: function () { return keys; }, KEYMAP: KEYMAP, LOAD: function () { return LOAD; },
   mergeStars: mergeStars, unlocked: unlocked, starsOf: starsOf, resetSave: function () { SAVE = { stars: {} }; writeSave(SAVE); },
   reloadSave: function () { SAVE = loadSave(); }, writeSave: function () { writeSave(SAVE); },
   menus: menus, showSelect: showSelect, pauseGame: pauseGame, resumeGame: resumeGame, clearStage: clearStage, activeHint: activeHint, draw: draw
