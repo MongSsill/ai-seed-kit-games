@@ -698,13 +698,10 @@ function tickFx(dt) {
 
 // ===== 소리 (2026-11-24 사용자 효과음 팩 "CHAIN_ECHO_Sound_Pack": 레퍼런스와 방향을 정해 AI 로 만든 합성음, assets/sfx/ · 설명은 assets/sfx/README.md) =====
 // 파일을 미리 불러 두고, 부를 때마다 복사본을 재생 (겹쳐 울릴 수 있게). 같은 소리는 45ms 안에 두 번 울리지 않음. 파일이 없거나 실패하면 예전 코드 음으로
-var SND_GAIN = { jump: 0.48, atk: 0.5, tag: 0.58, perfect: 0.78, dash: 0.65, ice: 0.58, wind: 0.6, hit: 0.46, hurt: 0.65, fall: 0.6, treasure: 0.68, clear: 0.72, ult: 0.7, land: 0.34,
-  attack_fire: 0.65, attack_ice: 0.65, attack_wind: 0.65, ice_break: 0.42, form_move: 0.48, form_attack: 0.48, enemy_down: 0.43, stack_refund: 0.57, gauge_full: 0.63, deny: 0.37,
-  boss_warning: 0.68, boss_counter: 0.8, boss_slam: 0.75, boss_dash: 0.64, boss_down: 0.75, ult_dragon: 0.76, ult_ice_rain: 0.68, ult_wind_storm: 0.68, ult_cutin: 0.74, ult_charge: 0.72,
-  ult_finale: 0.85, ult_after: 0.42, chest_open: 0.66, relic_gain: 0.78, cup_insert_1: 0.64, cup_insert_2: 0.64, cup_insert_3: 0.64, cup_insert_4: 0.64, door_open: 0.68,
-  world_door_open: 0.78, game_clear: 0.78, ui_move: 0.32, ui_confirm: 0.44, ui_back: 0.38, ui_pause: 0.4, ui_star: 0.4 };
-var SND = {}, SND_LAST = {}, SND_MASTER = 0.65, AC = null;
-function loadSounds() { if (TEST || typeof Audio === 'undefined') return; Object.keys(SND_GAIN).forEach(function (id) { var a = new Audio(); a.preload = 'auto'; a.src = BASE + 'assets/sfx/' + id + '.wav?v=48'; SND[id] = a; }); }
+// 음량 (2026-11-24 사용자 "음량 밸런스만 맞춰줘"): 파일마다 소리가 나는 구간의 평균 세기를 재서, 쓰임새별 목표 세기에 맞춘 배율 (메뉴 1700 < 자주 나는 소리 2300 < 기술 2900 < PERFECT·반격·상자·문 3000~3600 < 체인 에코·보스·클리어 3600~4400). 귀로 듣고 맞춘 값이 아님
+var SND_GAIN = { atk: 0.38, attack_fire: 0.39, attack_ice: 0.55, attack_wind: 0.40, boss_counter: 0.53, boss_dash: 0.50, boss_down: 0.47, boss_slam: 0.47, boss_warning: 0.38, chest_open: 0.47, clear: 0.62, cup_insert_1: 0.40, cup_insert_2: 0.41, cup_insert_3: 0.40, cup_insert_4: 0.36, dash: 0.31, deny: 0.38, door_open: 0.43, enemy_down: 0.48, fall: 0.40, form_attack: 0.29, form_move: 0.29, game_clear: 0.72, gauge_full: 0.37, hit: 0.36, hurt: 0.45, ice: 0.51, ice_break: 0.64, jump: 0.27, land: 0.61, perfect: 0.53, relic_gain: 0.54, stack_refund: 0.48, tag: 0.27, treasure: 0.58, ui_back: 0.41, ui_confirm: 0.44, ui_move: 0.37, ui_pause: 0.46, ui_star: 0.47, ult: 0.44, ult_after: 0.48, ult_charge: 0.35, ult_cutin: 0.46, ult_dragon: 0.42, ult_finale: 0.45, ult_ice_rain: 0.55, ult_wind_storm: 0.44, wind: 0.36, world_door_open: 0.45 };
+var SND = {}, SND_LAST = {}, SND_MASTER = 1.0, AC = null;   // 전체 음량 (배율을 세기에 맞춰 낮춘 만큼 0.65 → 1.0 으로 올려 전체 크기는 전과 비슷하게)
+function loadSounds() { if (TEST || typeof Audio === 'undefined') return; Object.keys(SND_GAIN).forEach(function (id) { var a = new Audio(); a.preload = 'auto'; a.src = BASE + 'assets/sfx/' + id + '.wav?v=49'; SND[id] = a; }); }
 function sfx(name) {
   if (TEST) return;
   if (name === 'hit' && G.ult) return;                                   // 체인 에코 동안 적중음은 장면 소리에 맡김 (겹쳐 시끄럽지 않게)
@@ -1517,12 +1514,12 @@ var SPR = { files: ['char-red', 'char-blue', 'char-green'], face: [1, 1, 1], foo
     CH2.names.forEach(function (n) { var im = newImg(); im.onload = function () { CH2.fr[ci][n] = im; CH2.count++; }; im.src = BASE + 'assets/char/' + k + '-' + n + '.png'; });
   });
   UI_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { UIIMG[n] = im; }; im.src = BASE + 'assets/ui/' + n + '.png'; });
-  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=48'; });
+  REF_FILES.forEach(function (n) { var im = newImg(); im.onload = function () { REF[n] = im; }; im.src = BASE + 'assets/ref/' + n + '.png?v=49'; });
   loadSounds();   // 효과음 (assets/sfx/)
-  [['tornado', 'tornado'], ['windStart', 'wind-start'], ['windEnd', 'wind-end']].forEach(function (p) { var im = newImg(); im.onload = function () { ULTIMG[p[0]] = im; }; im.src = BASE + 'assets/ult/' + p[1] + '.png?v=48'; });
-  ['dragon', 'ice', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : k === 'dragon' ? 3 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=48'; })(i); });
-  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=48';
-  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=48'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
+  [['tornado', 'tornado'], ['windStart', 'wind-start'], ['windEnd', 'wind-end']].forEach(function (p) { var im = newImg(); im.onload = function () { ULTIMG[p[0]] = im; }; im.src = BASE + 'assets/ult/' + p[1] + '.png?v=49'; });
+  ['dragon', 'ice', 'fin'].forEach(function (k) { for (var i = 0; i < (k === 'fin' ? 8 : k === 'dragon' ? 3 : 6); i++) (function (i) { var im = newImg(); im.onload = function () { ULTIMG[k][i] = im; }; im.src = BASE + 'assets/ult/' + k + i + '.png?v=49'; })(i); });
+  var uf = newImg(); uf.onload = function () { ULTIMG.faces = uf; }; uf.src = BASE + 'assets/ult/faces.png?v=49';
+  [['n', 6], ['f', 12], ['b', 18]].forEach(function (k) { for (var i = 0; i < k[1]; i++) (function (i) { var im = newImg(); im.onload = function () { DIMG[k[0]][i] = im; }; im.src = BASE + 'assets/door/' + k[0] + i + '.png?v=49'; })(i); });   // 문 애니메이션 (사용자 에셋 2026-11-24)
 })();
 // ===== 걷기 몸짓 (2026-11-24 사용자 "슬라이드해서 움직이는 것처럼 … 걸어가는 모션을 정확하게", "팔 다리등의 움직임이 같이 들어가면"):
 // 서 있는 그림(idle0)을 윗몸·뒷다리·앞다리·뒷팔·앞팔로 나눠 움직인다. 걸음은 시간이 아니라 걸어간 거리로 맞춰 발이 미끄러지지 않게.
