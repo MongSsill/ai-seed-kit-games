@@ -195,7 +195,7 @@ function moveBody(o, dt, opts) {
   }
   // 세로
   o.y += o.vy * dt;
-  o.onGround = false;
+  o.onGround = false; o.onIce = false;   // 얼음 위인지도 매번 다시 (2026-11-24 reviewer: 한 번 켜지면 꺼지지 않아 떨어진 뒤 돌아올 자리가 멈췄음)
   var cl = Math.floor(o.x / TS), cr = Math.floor((o.x + o.w - 0.01) / TS);
   if (o.vy >= 0) {
     r = Math.floor((o.y + o.h - 0.01) / TS);
@@ -223,7 +223,7 @@ function startLevel(which, opts) {
   G.hp = CFG.hp; G.hpMax = CFG.hp; G.doorAnim = null; G.relicPop = null; G.heartNew = 0; G.wallOpen = false; G.stack = CFG.stackStart; G.regen = 0; G.gauge = 0;
   G.hitThisRun = false; G.treasure = false; G.perfect = null; G.cutin = null; G.cueHit = null; G.counterFx = null; G.slamFx = null; G.refundLock = [0, 0, 0]; G.selfCD = [0, 0, 0]; G.selfDeny = 0; G.ice = null;
   G.echoes = []; G.parts = []; G.pops = []; G.waves = []; G.items = [];
-  G.flash = 0; G.hitstop = 0; G.ult = null; G.shake = 0; G.dying = 0; G.cleared = false;
+  G.flash = 0; G.hitstop = 0; G.ult = null; G.ultHits = []; G.shake = 0; G.dying = 0; G.cleared = false;
   G.stats = { perfects: 0, tags: 0, normals: 0 };
   G.form = 'move';                                                         // 스테이지는 이동폼으로 시작
   P = { x: lv.start.c * TS + (TS - CFG.pw) / 2, y: (lv.start.r + 1) * TS - CFG.ph, w: CFG.pw, h: CFG.ph,
@@ -472,7 +472,7 @@ function skillHits(box, hitList, from, onFirst, mul) {
 }
 
 // ===== 다치기와 다시 하기 (problem.md 21줄) =====
-function invulnerable() { return P.inv > 0 || !!P.skill || !!G.ult || G.dying > 0; }
+function invulnerable() { return P.inv > 0 || (P.skill && (P.skill.type === 'dash' || P.skill.type === 'wind')) || !!G.ult || G.dying > 0; }   // 무적: 맞은 뒤·반격(패링) 성공 뒤(P.inv), 플레아 돌진·클로에 상승 같은 이동 기술 중, 체인 에코 중. 오필리아 기술·공격폼 기술 중에는 맞는다 (2026-11-24 사용자)
 function hurt(fromX) {
   if (invulnerable() || G.mode !== 'play') return;
   G.hp -= 1; G.hitThisRun = true; P.inv = CFG.hurtInv;
@@ -516,7 +516,7 @@ function step(dt, first) {
   if (!G.ult) G.runTime += dt;
   // 입력
   if (first) {
-    if (pressed.form && !G.ult) { G.form = G.form === 'move' ? 'atk' : 'move'; sfx(G.form === 'atk' ? 'form_attack' : 'form_move'); pop(G.form === 'atk' ? '공격폼' : '이동폼', P.x + P.w / 2, P.y - 20, G.form === 'atk' ? '#ff9a5a' : '#9fe6ff', false); sfx('tag'); }
+    if (pressed.form && !G.ult) { G.form = G.form === 'move' ? 'atk' : 'move'; sfx(G.form === 'atk' ? 'form_attack' : 'form_move'); pop(G.form === 'atk' ? '공격폼' : '이동폼', P.x + P.w / 2, P.y - 20, G.form === 'atk' ? '#ff9a5a' : '#9fe6ff', false); }
     if (pressed.up) interact();   // ↑: 상자 열기·문 열기
     if (pressed.tag0) tag(0);
     if (pressed.tag1) tag(1);
@@ -530,10 +530,11 @@ function step(dt, first) {
   // 스택 회복
   if (G.stack < CFG.stackMax) { G.regen += dt; if (G.regen >= CFG.stackRegen) { G.regen -= CFG.stackRegen; G.stack++; } } else G.regen = 0;
   G.gauge = Math.min(100, G.gauge);
-  // 합동 필살기 (problem.md 20줄): 빨강 돌진 → 파랑 활주 → 바람 상승 → 셋이 함께 마무리
+  // 체인 에코 (problem.md 22줄): 용의 돌진 → 얼음비 → 폭풍 → 세 얼굴 컷신 → 합동 일격
   if (G.ult) {   // 합동 필살기 : 체인 에코 — ver.2 — 공격마다 한 번씩 맞힘 (용의 돌진·얼음비·폭풍 1씩, 합동 일격 3. 보스는 2씩). 범위는 화면 전체
     var ut0 = G.ult.t; G.ult.t += dt; G.ult.hits = G.ult.hits || 0; G.ult.si = G.ult.si || 0;
-    while (G.ult.si < ULT_SND.length && G.ult.t >= ULT_SND[G.ult.si][0]) sfx(ULT_SND[G.ult.si++][1]);   // 장면마다 소리 한 번 (효과음 팩의 타임라인) G.ultHits = (G.ultHits || []).filter(function (h) { h.t += dt; return h.t < 0.3; }); G.enemies.forEach(function (en) { if (en.hitFl > 0) en.hitFl -= dt; });
+    while (G.ult.si < ULT_SND.length && G.ult.t >= ULT_SND[G.ult.si][0]) sfx(ULT_SND[G.ult.si++][1]);   // 장면마다 소리 한 번 (효과음 팩의 타임라인)
+    G.ultHits = (G.ultHits || []).filter(function (h) { h.t += dt; return h.t < 0.3; }); G.enemies.forEach(function (en) { if (en.hitFl > 0) en.hitFl -= dt; });   // 맞은 자리 불꽃·번쩍임이 0.3초·0.12초 뒤 사라지게
     while (G.ult.hits < ULT.hits.length && G.ult.t >= ULT.hits[G.ult.hits]) {
       var hi = G.ult.hits++; G.shake = hi === 3 ? 0.7 : 0.35; G.flash = hi === 3 ? 0.12 : 0.05; G.hitstop = hi === 3 ? 0.12 : 0.06; G.ultHits = G.ultHits || [];
       G.enemies.forEach(function (en) {
@@ -601,6 +602,7 @@ function step(dt, first) {
     G.hp -= 1; G.hitThisRun = true; sfx('fall'); G.flashRed = 0.25; G.shake = 0.2;
     var sx = P.safe.x, back = -(P.safe.face || 1);   // 디딘 자리가 낭떠러지 끝이면 왔던 쪽으로 한 칸 반 물러난 땅에서 (그 자리도 땅일 때만)
     for (var bs = 3; bs >= 1; bs--) { var tx = P.safe.x + back * bs * TS / 2, ry = Math.floor((P.safe.y + P.h + 2) / TS), c0 = Math.floor((tx + 2) / TS), c1 = Math.floor((tx + P.w - 2) / TS); if ((solidAt(c0, ry) || oneAt(c0, ry)) && (solidAt(c1, ry) || oneAt(c1, ry)) && !solidAt(c0, ry - 1) && !solidAt(c1, ry - 1)) { sx = tx; break; } }
+    if (P.skill && G.ice) G.ice.done = true;   // 얼음 기술 도중 떨어져도 얼음 길은 평소처럼 사라지게 (reviewer)
     P.x = sx; P.y = P.safe.y; P.vx = 0; P.vy = 0; P.skill = null; P.inv = CFG.hurtInv; P.lockIn = 0.45;
     if (G.hp <= 0) { G.dying = 0.7; }
     return;
@@ -1242,6 +1244,7 @@ function interact() {   // ↑: 가까운 상자를 열거나 문을 연다
     ch.opening = 0.001; G.hpMax = CFG.hp + 1; G.hp = G.hpMax; G.relicPop = { t: 0 }; G.heartNew = 1.5;   // 2026-11-24 사용자 "획득한 만큼 체력이 차야": 늘어난 칸까지 가득
     G.flash = 0.2; G.shake = 0.2; burst(ch.x + ch.w / 2, ch.y, '#ffe08a', 24); sfx('chest_open'); setTimeout(function () { sfx('relic_gain'); }, 450); return;   // 상자 열림 → 생명의 잔 획득
   }
+  if (nearDoor() && G.lv.boss && G.hpMax <= CFG.hp) { pop('생명의 잔이 필요하다', P.x + P.w / 2, P.y - 40, '#ffd27a', false); sfx('deny'); return; }   // 월드 클리어 문은 보스 상자의 생명의 잔이 있어야 열림 (보스를 건너뛰고 끝내지 못하게)
   if (nearDoor()) { G.doorAnim = { t: 0, cups: G.lv.boss ? 4 : 0, fx: P.x + P.w / 2, fy: P.y + P.h / 2 }; P.vx = 0; P.skill = null; sfx(G.lv.boss ? 'cup_insert_1' : 'door_open'); }   // 보통 문 소리, 월드 문은 첫 잔 소리 (나머지 잔·문은 열리는 동안)
 }
 function openBossWall(b) {   // 보스 뒤 벽 (열 78) 을 땅 위만 열어 지나갈 수 있게

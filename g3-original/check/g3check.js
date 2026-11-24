@@ -28,6 +28,11 @@ run(function () {
   P().x = 11 * TS + 4; P().vx = CFG.run; g3.press('right'); var t = 0; while (P().onGround && t < 60) { g3.update(1 / 60); t++; } sim(0.05); g3.press('jump'); sim(0.05);
   ok(P().vy < 0, '코요테 타임: 떨어지기 시작한 뒤 0.05초의 점프도 된다', P().vy.toFixed(0)); clearKeys();
 });
+run(function () {   // 2026-11-24 reviewer 뒤 고침: 얼음 표시가 땅에서 꺼짐, 월드 문은 생명의 잔이 있어야 열림
+  start(flat()); P().onIce = true; sim(0.2); ok(P().onIce === false, '얼음 위가 아니면 얼음 표시가 꺼진다 (떨어진 뒤 돌아올 자리가 계속 바뀜)', 'onIce ' + P().onIce);
+  g3.startLevel(4, { test: true }); var d = G().door; P().x = d.x + d.w / 2 - P().w / 2; P().y = d.y + d.h - P().h; P().vx = 0; sim(0.05); g3.press('up'); g3.update(1 / 60); g3.release('up'); sim(0.1);
+  ok(!G().doorAnim && G().mode === 'play', '생명의 잔 없이 월드 클리어 문은 열리지 않는다', 'anim ' + !!G().doorAnim + ' mode ' + G().mode);
+});
 run(function () {   // 2026-11-24 사용자: 떨어지면 체력 1칸을 잃고 떨어지기 전 마지막 발판에서 다시
   start(flat(function (m) { for (var c = 20; c < 30; c++) for (var r = 14; r < 17; r++) m.g[r][c] = ' '; }));
   P().x = 17 * TS; P().y = 13 * TS - P().h; sim(0.2); var sx = P().x;
