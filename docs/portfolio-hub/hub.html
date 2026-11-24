@@ -4,137 +4,163 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jersey+10&family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700&display=swap">
 <style>
-/* 레이아웃: 세 게임을 왼쪽에서 오른쪽으로 자라는 세 단계로 보여 주는 한 장. 게임마다 자기 페이지의 대표 색(1 길 건너기 초록, 2 태그 보스전 룬 하늘, 3 Chain Echo 금빛)을 쓴다 */
+/* 레이아웃: 게임의 "스테이지 선택 화면". 세 게임이 스크린샷 카드로 나란히 서고, 아래에는 세 단계를 지나며 자라는 레벨업 경로(경험치 막대).
+   게임마다 자기 페이지의 대표 색(1 초록, 2 하늘, 3 금빛)을 쓴다 */
 :root {
-  --bg: #121418; --panel: #1b1e24; --panel-2: #23272f; --line: #343a45;
-  --text: #eef0f4; --muted: #a7adba;
-  --g1: #8bd88f; --g2: #4dd0e1; --g3: #ffd24a;
+  --bg: #0e1230; --bg-2: #161b42; --panel: #1b2150; --panel-2: #232a60; --line: #343d7a;
+  --text: #f1f2fb; --muted: #aab0d6;
+  --g1: #7be38a; --g2: #4dd0e1; --g3: #ffd24a;
   --font-pixel: "Jersey 10", "Do Hyeon", "Malgun Gothic", sans-serif;
   --font-head: "Do Hyeon", "Noto Sans KR", "Malgun Gothic", sans-serif;
   --font-body: "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.75; word-break: keep-all; overflow-wrap: break-word; }
-.wrap { max-width: 1080px; margin: 0 auto; padding-block: 40px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 48px; }
+body {
+  background:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px) 0 0 / 24px 24px,
+    radial-gradient(900px 500px at 50% -10%, rgba(255, 210, 74, 0.14), transparent 60%),
+    var(--bg);
+  color: var(--text); font-family: var(--font-body); font-size: 16px; line-height: 1.75; word-break: keep-all; overflow-wrap: break-word;
+}
+.wrap { max-width: 1100px; margin: 0 auto; padding-block: 44px 72px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 56px; }
 h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 400; }
 p { margin: 0; }
 a { color: inherit; }
 a:focus-visible { outline: 3px solid var(--g3); outline-offset: 3px; }
-.eyebrow { font-family: var(--font-pixel); font-size: 1.3rem; letter-spacing: 0.08em; color: var(--muted); }
-.eyebrow b { color: var(--g1); font-weight: 400; } .eyebrow i { color: var(--g2); font-style: normal; } .eyebrow u { color: var(--g3); text-decoration: none; }
-h1 { font-family: var(--font-head); font-size: clamp(2.3rem, 6vw, 3.6rem); line-height: 1.15; }
-.lead { max-width: 46em; font-size: clamp(1.04rem, 2.2vw, 1.16rem); color: var(--text); display: grid; gap: 8px; }
-.lead strong { color: var(--g3); font-weight: 700; }
-.bar { display: flex; height: 6px; max-width: 420px; } .bar span { flex: 1; } .bar span:nth-child(1) { background: var(--g1); } .bar span:nth-child(2) { background: var(--g2); } .bar span:nth-child(3) { background: var(--g3); }
-header { display: grid; gap: 18px; }
 
-/* 세 게임 카드 */
-.games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.game { background: var(--panel); border: 2px solid var(--line); border-top: 6px solid var(--c); padding: 20px; display: grid; gap: 12px; align-content: start; min-width: 0; }
-.game .no { font-family: var(--font-pixel); font-size: 2.2rem; line-height: 1; color: var(--c); }
-.game .kind { font-size: 0.86rem; color: var(--muted); }
-.game h2 { font-family: var(--font-head); font-size: 1.6rem; line-height: 1.2; }
+/* 머리 */
+header { display: grid; gap: 16px; justify-items: center; text-align: center; }
+.select { font-family: var(--font-pixel); font-size: 1.5rem; letter-spacing: 0.18em; color: var(--muted); }
+.select span { color: var(--g3); animation: blink 1.2s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+h1 { font-family: var(--font-head); font-size: clamp(2.5rem, 7vw, 4.2rem); line-height: 1.1;
+  background: linear-gradient(180deg, #fffbe0, #ffd24a 55%, #ff9a3a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 #3a2400) drop-shadow(0 0 18px rgba(255, 200, 80, 0.35)); }
+.lead { max-width: 44em; font-size: clamp(1.04rem, 2.2vw, 1.15rem); display: grid; gap: 6px; }
+.lead strong { color: var(--g3); font-weight: 700; }
+
+/* 스테이지 카드 */
+.games { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.game { background: var(--panel); border: 3px solid var(--c); box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px rgba(255,255,255,0.08), 0 14px 30px rgba(0, 0, 0, 0.45); display: grid; align-content: start; min-width: 0; transition: transform .15s ease; }
+.game:hover { transform: translateY(-4px); }
+.shot { position: relative; aspect-ratio: 16 / 10; overflow: hidden; background: #000; border-bottom: 3px solid var(--c); }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; max-width: 100%; }
+.g1 .shot img { object-position: 50% 30%; }
+.shot .no { position: absolute; left: 10px; top: 8px; font-family: var(--font-pixel); font-size: 2.4rem; line-height: 1; color: var(--c); text-shadow: 0 3px 0 #000, 0 0 10px rgba(0,0,0,0.6); }
+.shot .clear { position: absolute; right: 10px; top: 12px; font-family: var(--font-pixel); font-size: 1.2rem; letter-spacing: 0.1em; color: #111; background: var(--c); padding: 0 8px; }
+.body { padding: 18px 18px 20px; display: grid; gap: 10px; }
+.kind { font-size: 0.86rem; color: var(--muted); }
+.game h2 { font-family: var(--font-head); font-size: 1.7rem; line-height: 1.15; color: var(--c); }
 .game p { font-size: 0.95rem; }
-.links { display: grid; gap: 8px; margin-top: 4px; }
-.links a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; text-decoration: none; font-family: var(--font-head); font-size: 1.05rem; background: var(--panel-2); border: 2px solid var(--line); transition: border-color .12s ease, transform .12s ease; }
-.links a:hover { border-color: var(--c); transform: translateY(-1px); }
-.links a.main { background: var(--c); color: #111; border-color: var(--c); }
+.links { display: grid; gap: 8px; margin-top: 6px; }
+.links a { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 14px; text-decoration: none; font-family: var(--font-head); font-size: 1.05rem; background: var(--panel-2); border: 2px solid var(--line); transition: border-color .12s ease; }
+.links a:hover { border-color: var(--c); }
+.links a.main { background: var(--c); color: #10132b; border-color: var(--c); }
 .links a span { font-family: var(--font-pixel); font-size: 1.2rem; }
 .g1 { --c: var(--g1); } .g2 { --c: var(--g2); } .g3 { --c: var(--g3); }
 
-/* 성장 과정 */
-section { display: grid; gap: 18px; }
-section > h2 { font-family: var(--font-head); font-size: clamp(1.7rem, 4vw, 2.3rem); }
-section > p.sub { color: var(--muted); max-width: 46em; }
-.grow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; position: relative; }
-.stage { background: var(--panel); border: 2px solid var(--line); padding: 20px; display: grid; gap: 12px; align-content: start; min-width: 0; position: relative; }
-.stage .tag { font-family: var(--font-pixel); font-size: 1.25rem; letter-spacing: 0.05em; color: var(--c); }
-.stage h3 { font-family: var(--font-head); font-size: 1.35rem; line-height: 1.3; }
-.stage ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 0.94rem; }
-.stage ul li::marker { color: var(--c); }
-.stage .key { padding: 10px 12px; background: var(--panel-2); border-left: 4px solid var(--c); font-size: 0.93rem; }
-.stage .key b { color: var(--c); font-weight: 700; }
-.arrow { display: none; }
-@media (min-width: 900px) { .stage:not(:last-child)::after { content: "▶"; position: absolute; right: -15px; top: 30px; color: var(--muted); font-size: 0.9rem; } }
+/* 레벨업 경로 */
+section { display: grid; gap: 20px; }
+section > h2 { font-family: var(--font-head); font-size: clamp(1.8rem, 4.4vw, 2.5rem); text-align: center; }
+section > p.sub { color: var(--muted); max-width: 44em; justify-self: center; text-align: center; }
+.xp { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; height: 18px; border: 3px solid #e8e9ff; background: #0a0d24; }
+.xp span:nth-child(1) { background: var(--g1); } .xp span:nth-child(2) { background: var(--g2); } .xp span:nth-child(3) { background: var(--g3); }
+.xp span + span { border-left: 3px solid #0a0d24; }
+.lv { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+.level { background: var(--bg-2); border: 2px solid var(--line); border-top: 5px solid var(--c); padding: 18px 18px 20px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.level .tag { font-family: var(--font-pixel); font-size: 1.35rem; letter-spacing: 0.06em; color: var(--c); }
+.level h3 { font-family: var(--font-head); font-size: 1.4rem; line-height: 1.3; }
+.level ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 0.94rem; }
+.level ul li::marker { color: var(--c); }
+.level .skill { padding: 8px 12px; background: var(--panel); border-left: 4px solid var(--c); font-size: 0.93rem; }
+.level .skill b { color: var(--c); font-weight: 700; }
 
 /* 숫자 */
-.nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.num { background: var(--panel); border: 2px solid var(--line); padding: 16px; display: grid; gap: 2px; min-width: 0; }
-.num .v { font-family: var(--font-pixel); font-size: 2.4rem; line-height: 1; color: var(--g3); font-variant-numeric: tabular-nums; }
+.nums { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.num { background: var(--panel); border: 2px solid var(--line); padding: 16px; display: grid; gap: 4px; min-width: 0; text-align: center; }
+.num .v { font-family: var(--font-pixel); font-size: 2.8rem; line-height: 1; color: var(--g3); font-variant-numeric: tabular-nums; }
 .num .l { font-size: 0.9rem; color: var(--muted); }
 
-.quote { padding: 18px 20px; background: var(--panel); border: 2px solid var(--g3); display: grid; gap: 10px; }
-.quote .t { font-family: var(--font-head); font-size: 1.2rem; color: var(--g3); }
+.quote { padding: 20px 22px; background: var(--panel); border: 3px solid var(--g3); display: grid; gap: 10px; }
+.quote .t { font-family: var(--font-head); font-size: 1.3rem; color: var(--g3); }
 .quote ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; }
+.end { display: grid; gap: 14px; justify-items: center; text-align: center; }
+.repo { display: inline-flex; gap: 8px; align-items: center; padding: 11px 20px; border: 3px solid var(--g3); background: var(--panel-2); text-decoration: none; font-family: var(--font-head); font-size: 1.1rem; }
+.repo:hover { background: var(--g3); color: #10132b; }
 .foot { font-size: 0.84rem; color: var(--muted); max-width: 46em; }
-.repo { display: inline-flex; gap: 8px; align-items: center; padding: 10px 16px; border: 2px solid var(--line); background: var(--panel-2); text-decoration: none; font-family: var(--font-head); font-size: 1.05rem; justify-self: start; }
-.repo:hover { border-color: var(--g3); }
 
-@media (max-width: 860px) { .games, .grow { grid-template-columns: 1fr; } .nums { grid-template-columns: 1fr 1fr; } }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (max-width: 880px) { .games, .lv { grid-template-columns: 1fr; } .nums { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
 <div class="wrap">
   <header>
-    <span class="eyebrow"><b>GAME 1</b> · <i>GAME 2</i> · <u>GAME 3</u> · AI 협업 포트폴리오</span>
+    <span class="select">SELECT STAGE <span>▼</span></span>
     <h1>AI와 만든 게임 셋</h1>
-    <div class="bar" aria-hidden="true"><span></span><span></span><span></span></div>
     <div class="lead">
       <p>코딩을 처음 하는 사람이 AI(Claude Code)에게 코드를 맡기고, <strong>무엇을 만들지와 됐는지는 직접 정하며</strong> 한 판 30초~3분짜리 게임 셋을 차례로 끝까지 만들었습니다.</p>
-      <p>완전 카피 → 큰 게임의 일부 → 창작 데모로 이어지는 동안, <strong>AI를 쓰는 방식이 어떻게 자랐는지</strong>를 한 장에 모았습니다.</p>
+      <p>완전 카피 → 큰 게임의 일부 → 창작 데모를 지나며 <strong>AI를 쓰는 방식이 어떻게 자랐는지</strong> 한 장에 모았습니다.</p>
     </div>
   </header>
 
   <div class="games">
     <article class="game g1">
-      <span class="no">01</span>
-      <span class="kind">게임 1 · 완전 카피</span>
-      <h2>길 건너기</h2>
-      <p>한 칸씩 길을 건너는 무한 진행 게임을 그대로 따라 만들며, AI와 일하는 규칙과 기록하는 습관을 세웠습니다.</p>
-      <div class="links">
-        <a class="main" href="https://claude.ai/artifact/CvtTfN8UTTp4RPsn2Bvaht" target="_blank" rel="noopener">제작 과정 보기 <span>▶</span></a>
-        <a href="https://mongssill.github.io/ai-seed-kit-games/g1-copy/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+      <div class="shot"><img src="img/g1.png" alt="길 건너기 게임의 시작 화면" width="864" height="1344"><span class="no">01</span><span class="clear">CLEAR</span></div>
+      <div class="body">
+        <span class="kind">게임 1 · 완전 카피</span>
+        <h2>길 건너기</h2>
+        <p>한 칸씩 길을 건너는 무한 진행 게임을 그대로 따라 만들며, AI와 일하는 규칙과 기록하는 습관을 세웠습니다.</p>
+        <div class="links">
+          <a class="main" href="https://claude.ai/artifact/CvtTfN8UTTp4RPsn2Bvaht" target="_blank" rel="noopener">제작 과정 보기 <span>▶</span></a>
+          <a href="https://mongssill.github.io/ai-seed-kit-games/g1-copy/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+        </div>
       </div>
     </article>
     <article class="game g2">
-      <span class="no">02</span>
-      <span class="kind">게임 2 · 큰 게임의 일부</span>
-      <h2>태그 보스전</h2>
-      <p>몬길: 스타다이브의 보스전 핵심인 태그 반격을 3분 분량의 한 판으로 재구성했습니다.</p>
-      <div class="links">
-        <a class="main" href="https://claude.ai/artifact/6vRRsLDfJVFFXFzDhv48gf" target="_blank" rel="noopener">작업 방식 보기 <span>▶</span></a>
-        <a href="https://mongssill.github.io/ai-seed-kit-games/g2-slice/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+      <div class="shot"><img src="img/g2.png" alt="태그 보스전에서 골렘 보스 위에 노란 마름모 전조가 뜬 싸움 화면" width="720" height="480"><span class="no">02</span><span class="clear">CLEAR</span></div>
+      <div class="body">
+        <span class="kind">게임 2 · 큰 게임의 일부</span>
+        <h2>태그 보스전</h2>
+        <p>몬길: 스타다이브의 보스전 핵심인 태그 반격을 3분 분량의 한 판으로 재구성했습니다.</p>
+        <div class="links">
+          <a class="main" href="https://claude.ai/artifact/6vRRsLDfJVFFXFzDhv48gf" target="_blank" rel="noopener">작업 방식 보기 <span>▶</span></a>
+          <a href="https://mongssill.github.io/ai-seed-kit-games/g2-slice/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+        </div>
       </div>
     </article>
     <article class="game g3">
-      <span class="no">03</span>
-      <span class="kind">게임 3 · 창작 데모</span>
-      <h2>Chain Echo</h2>
-      <p>앞의 두 게임에서 확인한 태그의 재미로, 세 캐릭터를 태그로 이어 길을 여는 2D 도트 플랫포머를 만들었습니다.</p>
-      <div class="links">
-        <a class="main" href="https://claude.ai/artifact/QQgNLu9UE5DxC6NVqHAgeE" target="_blank" rel="noopener">작업 방식 보기 <span>▶</span></a>
-        <a href="https://mongssill.github.io/ai-seed-kit-games/g3-original/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+      <div class="shot"><img src="img/g3.png" alt="Chain Echo의 합동 일격이 화면 가운데에서 터지는 장면" width="960" height="544"><span class="no">03</span><span class="clear">CLEAR</span></div>
+      <div class="body">
+        <span class="kind">게임 3 · 창작 데모</span>
+        <h2>Chain Echo</h2>
+        <p>앞의 두 게임에서 확인한 태그의 재미로, 세 캐릭터를 태그로 이어 길을 여는 2D 도트 플랫포머를 만들었습니다.</p>
+        <div class="links">
+          <a class="main" href="https://claude.ai/artifact/QQgNLu9UE5DxC6NVqHAgeE" target="_blank" rel="noopener">작업 방식 보기 <span>▶</span></a>
+          <a href="https://mongssill.github.io/ai-seed-kit-games/g3-original/" target="_blank" rel="noopener">게임 해 보기 <span>▶</span></a>
+        </div>
       </div>
     </article>
   </div>
 
   <section aria-labelledby="h-grow">
-    <h2 id="h-grow">AI 활용 방식이 자란 과정</h2>
+    <h2 id="h-grow">AI 활용 레벨업</h2>
     <p class="sub">게임 하나를 끝낼 때마다 회고로 다음 게임에서 다르게 할 것을 정했고, 그 결과가 다음 게임의 일하는 방식이 되었습니다.</p>
-    <div class="grow">
-      <div class="stage g1">
-        <span class="tag">STAGE 1 · 길 건너기</span>
+    <div class="xp" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="lv">
+      <div class="level g1">
+        <span class="tag">LV.1 · 길 건너기</span>
         <h3>AI에게 맡기는 법을 세우다</h3>
         <ul>
           <li>작업 규칙 파일(CLAUDE.md)과 <b>/start · /end · /retro</b> 명령으로 하루 작업의 흐름을 고정</li>
           <li>AI가 틀린 것을 그 자리에서 배운 것 장부에 기록하고, 두 번 반복되면 규칙 한 줄로</li>
           <li>작업마다 그 시점의 판을 단계별로 보관</li>
         </ul>
-        <div class="key"><b>핵심</b> — 맡기는 범위와 내가 정하는 범위를 나눔</div>
+        <div class="skill"><b>얻은 능력</b> — 맡기는 범위와 내가 정하는 범위를 나눔</div>
       </div>
-      <div class="stage g2">
-        <span class="tag">STAGE 2 · 태그 보스전</span>
+      <div class="level g2">
+        <span class="tag">LV.2 · 태그 보스전</span>
         <h3>AI가 AI를 검증하게 하다</h3>
         <ul>
           <li>만든 과정을 보지 않은 <b>reviewer</b> AI로 저장 전 독립 검토</li>
@@ -142,18 +168,18 @@ section > p.sub { color: var(--muted); max-width: 46em; }
           <li>봇 시뮬레이션으로 난이도를 재되, 처음 하는 사람 수준도 함께 측정</li>
           <li>그림은 사람이 AI 이미지 도구로 만들고, AI는 부위별 애니메이션</li>
         </ul>
-        <div class="key"><b>핵심</b> — 결과를 사람·AI·검사로 이중 확인</div>
+        <div class="skill"><b>얻은 능력</b> — 결과를 사람·AI·검사로 이중 확인</div>
       </div>
-      <div class="stage g3">
-        <span class="tag">STAGE 3 · Chain Echo</span>
+      <div class="level g3">
+        <span class="tag">LV.3 · Chain Echo</span>
         <h3>여러 AI 도구를 하나의 흐름으로</h3>
         <ul>
           <li>레퍼런스를 정해 <b>AI로 그림·효과음 생성</b> → Claude Code가 게임 톤에 맞게 도트·색·외곽선으로 다시 칠해 넣음</li>
           <li>위치와 음량을 짐작하지 않고 <b>재서 맞춤</b> (가운데 선·바닥 선, 소리 세기)</li>
           <li>방향이 여럿이면 AI가 후보를 먼저 보여 주고 내가 고름</li>
-          <li>앞 게임의 규칙·검사·reviewer를 그대로 이어받아 속도를 올림 (검사 207개)</li>
+          <li>앞 게임의 규칙·검사·reviewer를 이어받아 속도를 올림 (검사 207개)</li>
         </ul>
-        <div class="key"><b>핵심</b> — 사람은 방향과 검수, AI는 생성과 정밀한 적용</div>
+        <div class="skill"><b>얻은 능력</b> — 사람은 방향과 검수, AI는 생성과 정밀한 적용</div>
       </div>
     </div>
   </section>
@@ -177,7 +203,8 @@ section > p.sub { color: var(--muted); max-width: 46em; }
     </ol>
   </div>
 
-  <a class="repo" href="https://github.com/MongSsill/ai-seed-kit-games" target="_blank" rel="noopener">저장소 전체 보기 (코드·문서·기록) ▶</a>
-
-  <p class="foot">게임 2·3은 몬길: 스타다이브의 캐릭터 콘셉트를 차용한 비영리 창작물이며, 원작의 그림과 소리는 사용하지 않았습니다. 모든 게임은 PC 키보드로 플레이합니다.</p>
+  <div class="end">
+    <a class="repo" href="https://github.com/MongSsill/ai-seed-kit-games" target="_blank" rel="noopener">저장소 전체 보기 (코드·문서·기록) ▶</a>
+    <p class="foot">게임 2·3은 몬길: 스타다이브의 캐릭터 콘셉트를 차용한 비영리 창작물이며, 원작의 그림과 소리는 사용하지 않았습니다. 모든 게임은 PC 키보드로 플레이합니다.</p>
+  </div>
 </div>
