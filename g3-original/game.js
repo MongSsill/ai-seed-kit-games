@@ -1079,20 +1079,23 @@ function drawLighting(cam) {
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, temple ? 'rgba(0,4,16,0.75)' : 'rgba(20,30,10,0.35)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
-var FG = null;
+var FG = null, FGC = null;
 function drawForeground(cam) {   // 앞쪽 어두운 실루엣 (가지·잎, 사원은 사슬과 기둥 조각): 깊이를 준다
   if (G.lv.theme === 'forest') return;
   var temple = G.lv.theme === 'temple';
   if (!temple && REF.vine && REF.leaves) {   // 숲 (1-2~1-4) 앞쪽 윗부분: 시안의 잎 덤불을 뒤집어 매달고 덩굴을 늘어뜨림 (2026-11-24 사용자 "덩쿨 배경도 그래픽 업데이트가 되어있지 않아")
     var lv = REF.leaves, vn = REF.vine, step = 300, off = -((cam * 1.3) % step);
-    ctx.save(); ctx.imageSmoothingEnabled = true; ctx.filter = 'brightness(0.5) saturate(0.85)';
+    // 2026-11-28 렉 고침 (docs/lag-report.md): 전에는 ctx.filter 를 켠 채 한 장씩 약 30번 그려 소프트웨어 캔버스에서 한 프레임에 60 ms 가 넘었다.
+    // 덩굴·잎은 화면이 흐르는 만큼 소수점 자리로 움직여 사본을 못 쓰므로, 필터 없이 따로 둔 캔버스(FGC)에 똑같이 그린 뒤 그 캔버스 한 장만 필터를 켜서 붙인다 (필터 그리기 30번 → 1번)
+    if (!FGC) { FGC = document.createElement('canvas'); FGC.width = W; FGC.height = 204; }   // 덩굴은 최대 135×1.5 = 202.5 픽셀, 잎은 52 픽셀 높이까지
+    var fg = FGC.getContext('2d'); fg.clearRect(0, 0, FGC.width, FGC.height); fg.imageSmoothingEnabled = true; fg.imageSmoothingQuality = 'high';
     for (var fx = off - step; fx < W + step; fx += step) {
       var k = Math.abs(Math.round((fx - off) / step + Math.floor(cam * 1.3 / step))) % 3;
-      [[18, 70 + k * 30], [150, 110 - k * 20], [236, 50 + k * 25]].forEach(function (v) { ctx.drawImage(vn, 0, 0, vn.width, Math.min(vn.height, v[1]), fx + v[0], 0, vn.width * 1.5, Math.min(vn.height, v[1]) * 1.5); });
-      ctx.save(); ctx.translate(fx + 10, 52); ctx.scale(1.7, -1.1); ctx.drawImage(lv, 0, 0, lv.width, 44, 0, 0, lv.width, 44); ctx.restore();
-      ctx.save(); ctx.translate(fx + 175, 40); ctx.scale(-1.4, -0.9); ctx.drawImage(lv, 0, 0, lv.width, 44, 0, 0, lv.width, 44); ctx.restore();
+      [[18, 70 + k * 30], [150, 110 - k * 20], [236, 50 + k * 25]].forEach(function (v) { fg.drawImage(vn, 0, 0, vn.width, Math.min(vn.height, v[1]), fx + v[0], 0, vn.width * 1.5, Math.min(vn.height, v[1]) * 1.5); });
+      fg.save(); fg.translate(fx + 10, 52); fg.scale(1.7, -1.1); fg.drawImage(lv, 0, 0, lv.width, 44, 0, 0, lv.width, 44); fg.restore();
+      fg.save(); fg.translate(fx + 175, 40); fg.scale(-1.4, -0.9); fg.drawImage(lv, 0, 0, lv.width, 44, 0, 0, lv.width, 44); fg.restore();
     }
-    ctx.restore();
+    ctx.save(); ctx.filter = 'brightness(0.5) saturate(0.85)'; blitExact(FGC, 0, 0); ctx.restore();
     return;
   }
   if (!FG) {
@@ -1194,7 +1197,7 @@ function drawProps() {
       if (g[r][c - 1] !== '#' || g[r][c + 1] !== '#') break;   // 가장자리는 비운다 (발 디딜 곳이 잘 보이게)
       var pr = set[(hsh / 6 | 0) % set.length], im = REF[pr[0]]; if (!im) break;
       var tall = pr[0] === 'banner' || pr[0] === 'lamp', dw = pr[1], dh = tall ? dw * im.height / im.width : im.height / im.width * dw;
-      ctx.filter = 'brightness(0.72) saturate(0.8)'; ctx.drawImage(im, c * TS + TS / 2 - dw / 2, r * TS - dh + 3, dw, dh); ctx.filter = 'none';
+      filteredDraw('prop:' + pr[0], im, 'brightness(0.72) saturate(0.8)', 0, 0, im.width, im.height, c * TS + TS / 2 - dw / 2, r * TS - dh + 3, dw, dh, true);   // 필터 사본 (2026-11-28, 전에는 매 프레임 ctx.filter)
       break;
     }
   }
@@ -1261,6 +1264,21 @@ function tinted(img, col) {   // 그림 위에 장소의 빛 색을 얇게 덮�
   x.drawImage(img, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = col; x.fillRect(0, 0, c.width, c.height);
   return (tc[col] = c);
 }
+// 필터 사본 (2026-11-28 렉 조사, docs/lag-report.md. 사용자 "맞다 이게 원인이었네 수정하고 적용도하자"): ctx.filter(brightness·saturate·grayscale)를 켠 채 drawImage 하면
+// 소프트웨어 캔버스에서는 그림 크기와 상관없이 한 번에 약 2 ms 가 들어, 1-2~1-4 의 덩굴·장식·문·잃은 하트가 한 프레임에 30~40번이면 70 ms 가 넘었다.
+// 늘 같은 크기·같은 소수점 자리에 그리는 그림은, 그려질 크기로 늘린 뒤 필터를 건 사본(원래와 같은 순서: 늘리기 → 필터)을 한 번 만들어 두고 정수 자리에 1:1 로 붙인다. 화면은 같고 필터 비용은 처음 한 번만 든다
+var FCACHE = {}, DEV = 1;   // DEV: 화면 픽셀 배율 (draw 에서 정함). 1 이면 사본을 픽셀 그대로 붙여야 원래와 똑같다 (부드럽게 붙이면 1:1 이어도 'high' 보간이 가장자리를 살짝 흐림)
+function blitExact(c, x, y) { var sm = ctx.imageSmoothingEnabled; if (DEV === 1) ctx.imageSmoothingEnabled = false; ctx.drawImage(c, x, y); ctx.imageSmoothingEnabled = sm; }
+function filteredDraw(key, img, filt, sx, sy, sw, sh, dx, dy, dw, dh, smooth) {
+  var ix = Math.floor(dx), iy = Math.floor(dy), fx = dx - ix, fy = dy - iy;   // 정수 자리와 소수점 자리를 나눔: 사본 안에서 소수점 자리만큼 밀어 그려 원래 보간과 같게
+  var k = key + '|' + filt + '|' + sx + ',' + sy + ',' + sw + ',' + sh + '|' + fx.toFixed(4) + ',' + fy.toFixed(4) + '|' + dw + 'x' + dh + '|' + (smooth ? 1 : 0), c = FCACHE[k];
+  if (!c) {
+    c = document.createElement('canvas'); c.width = Math.ceil(fx + dw) + 1; c.height = Math.ceil(fy + dh) + 1;
+    var x = c.getContext('2d'); x.imageSmoothingEnabled = !!smooth; x.imageSmoothingQuality = 'high'; x.filter = filt;
+    x.drawImage(img, sx, sy, sw, sh, fx, fy, dw, dh); FCACHE[k] = c;
+  }
+  blitExact(c, ix, iy);
+}
 function doorShadow(cx, by, w) { var g = ctx.createRadialGradient(cx, by, 2, cx, by, w); g.addColorStop(0, 'rgba(10,12,20,0.45)'); g.addColorStop(1, 'rgba(10,12,20,0)'); ctx.save(); ctx.translate(cx, by); ctx.scale(1, 0.18); ctx.translate(-cx, -by); ctx.fillStyle = g; ctx.fillRect(cx - w, by - w, w * 2, w * 2); ctx.restore(); }   // 문 밑 그림자 (땅에 닿아 보이게)
 function doorGrass(cx, by, w) {   // 문 밑동 앞에 그 칸의 풀 띠를 다시 그려 문이 땅에 묻혀 보이게
   var tp = tilePats(G.lv.theme === 'temple'), r = Math.round(by / TS), g = G.lv.g; if (!tp || !g[r]) return;
@@ -1280,7 +1298,8 @@ function drawDoor() {
     var ns = 112 / 190, nw = 220 * ns, nh = 197 * ns, ok2 = a ? Math.min(1, t / DOOR.normalT) : 0, pul2 = 0.3 + Math.sin(G.time * 3) * 0.1;
     var ng = ctx.createRadialGradient(cx, by - 50, 4, cx, by - 50, 90 + ok2 * 80); ng.addColorStop(0, 'rgba(255,236,170,' + Math.min(0.8, pul2 + ok2 * 0.5) + ')'); ng.addColorStop(1, 'rgba(255,220,130,0)');
     ctx.fillStyle = ng; ctx.fillRect(cx - 180, by - 200, 360, 220);
-    doorShadow(cx, by, 70); ctx.imageSmoothingEnabled = false; ctx.filter = 'brightness(0.9) saturate(0.85)'; ctx.drawImage(tinted(DIMG.n[a ? Math.min(5, Math.floor(ok2 * 6)) : 0], 'rgba(70,100,50,0.14)'), Math.round(cx - 110 * ns), Math.round(by + 8 - 190 * ns), Math.round(nw), Math.round(nh)); ctx.filter = 'none'; ctx.imageSmoothingEnabled = true; doorGrass(cx, by, nw * 0.8);
+    var dni = a ? Math.min(5, Math.floor(ok2 * 6)) : 0, dnImg = DIMG.n[dni];
+    doorShadow(cx, by, 70); ctx.imageSmoothingEnabled = false; filteredDraw('door:' + dni, tinted(dnImg, 'rgba(70,100,50,0.14)'), 'brightness(0.9) saturate(0.85)', 0, 0, dnImg.width, dnImg.height, Math.round(cx - 110 * ns), Math.round(by + 8 - 190 * ns), Math.round(nw), Math.round(nh), false); ctx.imageSmoothingEnabled = true; doorGrass(cx, by, nw * 0.8);   // 필터 사본 (2026-11-28, 전에는 매 프레임 ctx.filter)
     if (a && DIMG.f.length === 12 && DIMG.f.every(Boolean)) {   // 문이 열리며 발밑에서 빛이 솟아오름
       var fs = 0.42, fk = Math.min(11, Math.floor(Math.max(0, ok2 - 0.3) / 0.7 * 12)); ctx.globalAlpha = ok2 < 0.3 ? 0 : 0.6;   // 문 크기에 맞춰 작게, 도트로
       drawPix(DIMG.f[fk], cx - 182 * fs, by + 6 - 296 * fs, 362 * fs, 362 * fs, 2); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
@@ -1380,7 +1399,7 @@ function draw() {
   // 윈도우 배율 125%·150% 에서 픽셀이 고르지 않게 늘어나 자글거렸다. 그림을 늘리고 줄일 때는 부드럽게 (imageSmoothing)
   var dpr = Math.min(2, window.devicePixelRatio || 1), cssW = cv.clientWidth || W, bw = Math.round(cssW * dpr), bh = Math.round(bw * H / W);
   if (cv.width !== bw || cv.height !== bh) { cv.width = bw; cv.height = bh; }
-  ctx.setTransform(bw / W, 0, 0, bh / H, 0, 0); ctx.imageSmoothingQuality = 'high';
+  ctx.setTransform(bw / W, 0, 0, bh / H, 0, 0); ctx.imageSmoothingQuality = 'high'; DEV = bw / W;
   if (!ART) buildArt();
   var th = THEMES[G.lv.theme] || THEMES.forest;
   var bs = boss(), target = bs && bs.state !== 'sleep' && bs.state !== 'dead' ? bs.arenaL : clampCam(P.x + P.w / 2 - W / 2 + P.face * 60);   // 보스가 깨어나면 경기장(화면 한 장)에 고정
@@ -2213,7 +2232,9 @@ function drawHUDTopImg() {
   ctx.drawImage(U['hud-main'], HM.ox, HM.oy, U['hud-main'].width * S, U['hud-main'].height * S);
   // 하트: 판에 그려진 하트를 그대로 잘라 쓴다 (2026-11-24 사용자 "새로 얻은 체력도 기존 체력과 같은 느낌의 에셋으로"). 넷째 하트는 첫 하트를 옮겨 그리고, 잃은 하트는 같은 하트를 어둡게
   var hm = U['hud-main'], hs = [HM.hearts[0] - 22, HM.heartY - 19, 44, 38];
-  function heartAt(i, lost, scl) { var hx = HM.hearts[i], k = scl || 1; ctx.save(); if (lost) ctx.filter = 'grayscale(1) brightness(0.38)'; ctx.drawImage(hm, hs[0], hs[1], hs[2], hs[3], hmX(hx - 22 * k), hmY(HM.heartY - 19 * k), 44 * S * k, 38 * S * k); ctx.restore(); }
+  function heartAt(i, lost, scl) { var hx = HM.hearts[i], k = scl || 1;
+    if (lost && k === 1) { filteredDraw('heart:' + i, hm, 'grayscale(1) brightness(0.38)', hs[0], hs[1], hs[2], hs[3], hmX(hx - 22), hmY(HM.heartY - 19), 44 * S, 38 * S, true); return; }   // 잃은 하트: 필터 사본 (2026-11-28, 전에는 매 프레임 ctx.filter). 크기가 두근거리는 동안(k≠1)만 아래 원래 방식
+    ctx.save(); if (lost) ctx.filter = 'grayscale(1) brightness(0.38)'; ctx.drawImage(hm, hs[0], hs[1], hs[2], hs[3], hmX(hx - 22 * k), hmY(HM.heartY - 19 * k), 44 * S * k, 38 * S * k); ctx.restore(); }
   for (var i = G.hp; i < Math.min(3, G.hpMax); i++) heartAt(i, true);
   if (G.hpMax > 3) heartAt(3, G.hp < 4, G.heartNew > 0 ? 1 + Math.sin(G.heartNew * 20) * 0.12 : 1);   // 생명의 잔으로 늘어난 넷째 하트 (막 얻으면 두근거림)
   for (var c = 0; c < 3; c++) {
